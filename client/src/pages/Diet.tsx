@@ -424,6 +424,7 @@ function AddFoodModal({
       totalCarbs,
       totalFat,
     };
+
     await addMeal(meal);
     showToast("Refeição adicionada!", "success", "✅");
     setFoods([]);
@@ -830,64 +831,81 @@ export default function Diet() {
 
   // Atualizar dietSettings quando data.diet.settings muda
   useEffect(() => {
-  async function refreshMeals() {
-    setTodayMeals(await getTodayMeals());
-    setTodayNutrition(await getTodayNutrition());
-    setHydration(await getTodayHydration());
+    async function refreshMeals() {
+      setTodayMeals(await getTodayMeals());
+      setTodayNutrition(await getTodayNutrition());
+      setHydration(await getTodayHydration());
 
-    const settings = await getDietSettings();
+      const settings = await getDietSettings();
 
-    setDietSettings(
-      settings || {
-        dailyCalorieGoal: 2000,
-        proteinGoal: 150,
-        carbsGoal: 250,
-        fatGoal: 70,
-        waterGoal: 8,
-        restrictions: [],
-        preferences: [],
-      }
-    );
-  }
-
-  async function loadProfile() {
-    const { data: userData } = await supabase.auth.getUser();
-
-    if (!userData.user) return;
-
-    const { data } = await supabase
-      .from("profiles")
-      .select("name")
-      .eq("id", userData.user.id)
-      .single();
-
-    if (data) {
-      setProfile(data);
+      setDietSettings(
+        settings || {
+          dailyCalorieGoal: 2000,
+          proteinGoal: 150,
+          carbsGoal: 250,
+          fatGoal: 70,
+          waterGoal: 8,
+          restrictions: [],
+          preferences: [],
+        }
+      );
     }
-  }
 
-  refreshMeals();
-  loadProfile();
+    async function loadProfile() {
+      const { data: userData } = await supabase.auth.getUser();
 
-  const channel = supabase
-    .channel("diet-realtime")
-    .on(
-      "postgres_changes",
-      {
-        event: "*",
-        schema: "public",
-        table: "meals",
-      },
-      async () => {
-        await refreshMeals();
+      if (!userData.user) return;
+
+      const { data } = await supabase
+        .from("profiles")
+        .select("name")
+        .eq("id", userData.user.id)
+        .single();
+
+      if (data) {
+        setProfile(data);
       }
-    )
-    .subscribe();
+    }
 
-  return () => {
-    supabase.removeChannel(channel);
-  };
-}, []);
+    refreshMeals();
+    loadProfile();
+
+
+    const channel = supabase
+      .channel("diet-realtime")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "meals",
+        },
+        async () => {
+          await refreshMeals();
+        }
+      )
+
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "diet_settings",
+        },
+        async () => {
+          const settings = await getDietSettings();
+
+          if (settings) {
+            setDietSettings(settings);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
 
   const hours = new Date().getHours();
   let greeting = "Olá";

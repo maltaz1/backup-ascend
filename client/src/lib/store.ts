@@ -81,6 +81,20 @@ export interface WorkoutSession {
   completedAt: string;
 }
 
+export interface FinancialTransaction {
+  id: string;
+  title: string;
+  amount: number;
+  type: "income" | "expense";
+  category?: string;
+  date: string;
+  createdAt: string;
+}
+
+export interface FinancialData {
+  transactions: FinancialTransaction[];
+}
+
 export interface GymStats {
   totalWorkouts: number;
   totalWorkoutPlans: number;
@@ -187,6 +201,7 @@ export interface AppData {
   prayerConversations: PrayerConversation[];
   favoritePrayers: FavoritePrayer[];
   diet: DietData;
+  financial: FinancialData;
 }
 
 const STORAGE_KEY = "flowzone_data";
@@ -318,6 +333,9 @@ const DEFAULT_DATA: AppData = {
     dietPoints: 0,
     dietStreak: 0,
   },
+  financial: {
+  transactions: [],
+},
 };
 
 function generateId(): string {
@@ -900,7 +918,7 @@ export async function addWorkout(
     .single();
 
   const newWorkout: Workout = {
-    id: generateId(),
+    id: data.id,
     name: workout.name,
     dayOfWeek: workout.dayOfWeek,
     exercises: workout.exercises || [],
@@ -919,9 +937,23 @@ export async function updateWorkout(
   id: string,
   updates: Partial<Omit<Workout, "id" | "createdAt">>
 ): Promise<void> {
+  const updatesToDb: any = {};
+
+  if (updates.name !== undefined) {
+    updatesToDb.name = updates.name;
+  }
+
+  if (updates.dayOfWeek !== undefined) {
+    updatesToDb.day_of_week = updates.dayOfWeek;
+  }
+
+  if (updates.exercises !== undefined) {
+    updatesToDb.exercises = updates.exercises;
+  }
+
   const { error } = await supabase
     .from("workouts")
-    .update(updates)
+    .update(updatesToDb)
     .eq("id", id);
 
   if (error) {
@@ -935,6 +967,7 @@ export async function updateWorkout(
     Object.assign(workout, updates);
   }
 
+  saveData(_data);
   notify();
 }
 
@@ -1377,14 +1410,16 @@ export function getTodayNutrition() {
   };
 }
 
-export async function updateDietSettings(settings: DietSettings) {
+export async function updateDietSettings(
+  settings: DietSettings
+): Promise<void> {
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
   if (!user) return;
 
-  const { error } = await supabase.from("diet_settings").upsert({
+  const payload = {
     user_id: user.id,
     daily_calorie_goal: settings.dailyCalorieGoal,
     protein_goal: settings.proteinGoal,
@@ -1393,14 +1428,17 @@ export async function updateDietSettings(settings: DietSettings) {
     water_goal: settings.waterGoal,
     restrictions: settings.restrictions,
     preferences: settings.preferences,
+  };
+
+  const { error } = await supabase.from("diet_settings").upsert(payload, {
+    onConflict: "user_id",
   });
 
   if (error) {
-    console.error("Erro ao salvar configurações:", error);
+    console.error("Erro ao salvar metas:", error);
     return;
   }
 
-  // SALVAR LOCALMENTE TAMBÉM
   _data.diet.settings = settings;
 
   saveData(_data);
@@ -1417,9 +1455,7 @@ export async function addWaterCup(): Promise<void> {
 
   const today = new Date().toISOString().split("T")[0];
 
-  const existingHydration = _data.diet.hydration.find(
-    h => h.date === today
-  );
+  const existingHydration = _data.diet.hydration.find(h => h.date === today);
 
   // ───────── UPDATE LOCAL IMEDIATO ─────────
   if (existingHydration) {
@@ -1498,7 +1534,10 @@ export async function getDietSettings(): Promise<DietSettings | null> {
     .eq("user_id", user.id)
     .single();
 
-  if (error || !data) return null;
+  if (error || !data) {
+    console.error("Erro ao buscar metas:", error);
+    return null;
+  }
 
   return {
     dailyCalorieGoal: data.daily_calorie_goal,
@@ -1509,4 +1548,106 @@ export async function getDietSettings(): Promise<DietSettings | null> {
     restrictions: data.restrictions || [],
     preferences: data.preferences || [],
   };
+}
+
+// ───────── FINANCIAL ─────────
+
+export async function loadFinancialData() {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return;
+
+  const { data, error } = await supabase
+    .from("financial_transactions")
+    .select("*")
+    .eq("user_id", user.id);
+
+  if (error) {
+    console.error("Erro ao carregar finanças:", error);
+    return;
+  }
+
+  _data.financial.transactions = (data || []).map(item => ({
+    id: item.id,
+    title: item.title,
+    amount: Number(item.amount),
+    type: item.type,
+    category: item.category,
+    date: item.date,
+    createdAt: item.created_at,
+  }));
+
+  saveData(_data);
+  notify();
+}
+
+export async function deleteTransaction(id: string) {
+  const { error } = await supabase
+    .from("financial_transactions")
+    .delete()
+    .eq("id", id);
+
+  if (error) {
+    console.error("Erro ao deletar transação:", error);
+    return;
+  }
+
+  _data.financial.transactions =
+    _data.financial.transactions.filter(t => t.id !== id);
+
+  saveData(_data);
+  notify();
+}
+
+export function getFinancialData() {
+  return _data.financial;
+}
+
+export async function addTransaction(transaction: {
+  title: string;
+  amount: number;
+  type: "income" | "expense";
+  category?: string;
+  date: string;
+}) {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return;
+
+  const { data, error } = await supabase
+    .from("financial_transactions")
+    .insert([
+      {
+        user_id: user.id,
+        title: transaction.title,
+        amount: transaction.amount,
+        type: transaction.type,
+        category: transaction.category,
+        date: transaction.date,
+      },
+    ])
+    .select()
+    .single();
+
+  if (error) {
+    console.error(error);
+    return;
+  }
+
+  _data.financial.transactions.push({
+    id: data.id,
+    title: data.title,
+    amount: Number(data.amount),
+    type: data.type,
+    category: data.category,
+    date: data.date,
+    createdAt: data.created_at,
+  });
+
+  saveData(_data);
+  notify();
 }

@@ -8,7 +8,8 @@ import { ThemeProvider } from "./contexts/ThemeContext";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { Layout } from "./components/Layout";
 import { FlowToastContainer } from "./components/ui/FlowToast";
-import { loadDietData } from "./lib/store";
+import { loadDietData, loadFinancialData } from "./lib/store";
+
 
 // Pages
 import Dashboard from "./pages/Dashboard";
@@ -100,7 +101,7 @@ function App() {
       if (data.user) {
         await loadGymData();
         await loadDietData();
-
+        await loadFinancialData();
         const { data: profile } = await supabase
           .from("profiles")
           .select("*")
