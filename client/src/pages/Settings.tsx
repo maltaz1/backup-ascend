@@ -1,210 +1,348 @@
-import React, { useState } from "react";
-import { useStore } from "@/hooks/useStore";
-import { updateDietSettings } from "@/lib/store";
-import { showToast } from "@/components/ui/FlowToast";
+import React, { useEffect, useState } from "react";
+import {
+  User,
+  Palette,
+  Bell,
+  Cloud,
+  Shield,
+  Info,
+  LogOut,
+  Sparkles,
+  Database,
+  Lock,
+  Save,
+} from "lucide-react";
+
+import { motion } from "framer-motion";
 import { supabase } from "@/lib/supabase";
 
 export default function Settings() {
-  const data = useStore();
-  const [dietSettings, setDietSettings] = useState(data.diet.settings);
+  const [profile, setProfile] = useState({
+    name: "",
+    bio: "",
+    avatar: "https://api.dicebear.com/7.x/adventurer/svg?seed=FlowZone",
+  });
 
-  const handleSaveDietSettings = () => {
-    updateDietSettings(dietSettings);
-    showToast("Metas de dieta atualizadas!", "success", "✅");
-  };
+  const [notifications, setNotifications] = useState({
+    habits: true,
+    tasks: true,
+    academy: true,
+  });
+
+  const [animationsEnabled, setAnimationsEnabled] = useState(true);
+
+  useEffect(() => {
+    loadProfile();
+  }, []);
+
+  async function loadProfile() {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) return;
+
+    const { data } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", user.id)
+      .single();
+
+    if (data) {
+      setProfile({
+        name: data.name || "",
+        bio: data.bio || "",
+        avatar:
+          data.avatar_url ||
+          "https://api.dicebear.com/7.x/adventurer/svg?seed=FlowZone",
+      });
+    }
+  }
+
+  async function saveProfile() {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) return;
+
+    await supabase.from("profiles").upsert({
+      id: user.id,
+      name: profile.name,
+      bio: profile.bio,
+      avatar_url: profile.avatar,
+    });
+
+    alert("Perfil salvo!");
+  }
+
+  async function logout() {
+    await supabase.auth.signOut();
+    window.location.reload();
+  }
+
+  function toggleNotification(type: keyof typeof notifications) {
+    setNotifications({
+      ...notifications,
+      [type]: !notifications[type],
+    });
+  }
+
+  function toggleAnimations() {
+    setAnimationsEnabled(!animationsEnabled);
+  }
+
+  const cardClass =
+    "bg-zinc-900/80 border border-zinc-800 rounded-3xl p-6 hover:border-[#3B82F6]/40 hover:bg-zinc-800/60 transition-all";
+
+    async function resetPassword() {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user?.email) {
+    alert("Usuário não encontrado");
+    return;
+  }
+
+  const { error } =
+    await supabase.auth.resetPasswordForEmail(
+      user.email,
+      {
+        redirectTo: window.location.origin,
+      }
+    );
+
+  if (error) {
+    alert("Erro ao enviar email");
+    return;
+  }
+
+  alert("Email de redefinição enviado!");
+}
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="max-w-2xl mx-auto px-4 py-8">
-        {/* Header */}
+    <div className="min-h-screen bg-background text-white">
+      <div className="max-w-4xl mx-auto px-4 py-8">
+        {/* HEADER */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-foreground mb-2">
-            ⚙️ Configurações
-          </h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-4xl font-bold mb-2">⚙️ Configurações</h1>
+
+          <p className="text-zinc-400">
             Personalize sua experiência no FlowZone
           </p>
         </div>
 
-        {/* Settings Card */}
-        <div className="fz-card p-6 space-y-6">
-          {/* Diet Settings Section */}
-          <div>
-            <h3 className="font-semibold text-foreground mb-4">
-              🍎 Configurações de Dieta
-            </h3>
-            <div className="space-y-4">
-              <div>
-                <label className="text-sm text-muted-foreground block mb-2">
-                  Meta Calórica Diária (kcal)
-                </label>
-                <input
-                  type="number"
-                  value={dietSettings.dailyCalorieGoal}
-                  onChange={e =>
-                    setDietSettings({
-                      ...dietSettings,
-                      dailyCalorieGoal: parseInt(e.target.value),
-                    })
-                  }
-                  className="w-full px-3 py-2 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                />
-              </div>
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className="text-sm text-muted-foreground block mb-2">
-                    Proteína (g)
-                  </label>
-                  <input
-                    type="number"
-                    value={dietSettings.proteinGoal}
-                    onChange={e =>
-                      setDietSettings({
-                        ...dietSettings,
-                        proteinGoal: parseInt(e.target.value),
-                      })
-                    }
-                    className="w-full px-3 py-2 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-green-500"
-                  />
-                </div>
-                <div>
-                  <label className="text-sm text-muted-foreground block mb-2">
-                    Carboidratos (g)
-                  </label>
-                  <input
-                    type="number"
-                    value={dietSettings.carbsGoal}
-                    onChange={e =>
-                      setDietSettings({
-                        ...dietSettings,
-                        carbsGoal: parseInt(e.target.value),
-                      })
-                    }
-                    className="w-full px-3 py-2 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="text-sm text-muted-foreground block mb-2">
-                    Gordura (g)
-                  </label>
-                  <input
-                    type="number"
-                    value={dietSettings.fatGoal}
-                    onChange={e =>
-                      setDietSettings({
-                        ...dietSettings,
-                        fatGoal: parseInt(e.target.value),
-                      })
-                    }
-                    className="w-full px-3 py-2 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-pink-500"
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="text-sm text-muted-foreground block mb-2">
-                  Meta de Água (litros/dia)
-                </label>
-                <input
-                  type="number"
-                  step="0.5"
-                  value={dietSettings.waterGoal}
-                  onChange={e =>
-                    setDietSettings({
-                      ...dietSettings,
-                      waterGoal: parseFloat(e.target.value),
-                    })
-                  }
-                  className="w-full px-3 py-2 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-blue-400"
-                />
-              </div>
-              <button
-                onClick={handleSaveDietSettings}
-                className="w-full px-4 py-2 bg-amber-500 text-black rounded-lg font-medium hover:bg-amber-600 transition-colors"
-              >
-                💾 Salvar Configurações de Dieta
-              </button>
-            </div>
-          </div>
+        {/* PERFIL TOP */}
+        <div className="bg-gradient-to-r from-amber-500/20 to-orange-500/10 border border-amber-500/20 rounded-3xl p-6 mb-8">
+          <div className="flex items-center gap-5">
+            <img
+              src={profile.avatar}
+              className="w-24 h-24 rounded-full border-4 border-amber-500"
+            />
 
-          {/* About Section */}
-          <div className="pt-6 border-t border-border">
-            <h3 className="font-semibold text-foreground mb-4">Sobre</h3>
-            <div className="space-y-3 text-sm text-muted-foreground">
-              <div className="flex justify-between">
-                <span>Versão</span>
-                <span className="font-medium text-foreground">1.0.0</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Desenvolvido por</span>
-                <span className="font-medium text-foreground">
-                  FlowZone Team
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span>Última atualização</span>
-                <span className="font-medium text-foreground">
-                  26 de abril de 2026
-                </span>
-              </div>
-            </div>
-          </div>
+            <div>
+              <h2 className="text-2xl font-bold">
+                🔥 {profile.name || "Usuário"}
+              </h2>
 
-          {/* Data Management */}
+              <p className="text-zinc-400 mt-1">
+                {profile.bio || "Sem bio definida"}
+              </p>
 
-          <button
-            onClick={async () => {
-              await supabase.auth.signOut();
-              window.location.reload();
-            }}
-            className="w-full px-4 py-2 bg-zinc-800 text-white rounded-lg font-medium hover:bg-zinc-700 transition-colors"
-          >
-            🚪 Sair da Conta
-          </button>
-          <div className="border-t border-border pt-6">
-            <h3 className="font-semibold text-foreground mb-4">
-              Gerenciamento de Dados
-            </h3>
-            <div className="space-y-3">
-              <button
-                onClick={() => {
-                  const data = localStorage.getItem("flowzone-data");
-                  if (data) {
-                    const blob = new Blob([data], { type: "application/json" });
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement("a");
-                    a.href = url;
-                    a.download = `flowzone-backup-${new Date().toISOString().split("T")[0]}.json`;
-                    a.click();
-                    URL.revokeObjectURL(url);
-                  }
-                }}
-                className="w-full px-4 py-2 bg-primary text-white rounded-lg font-medium hover:bg-blue-600 transition-colors"
-              >
-                📥 Fazer Backup dos Dados
-              </button>
-
-              <button
-                onClick={() => {
-                  if (
-                    confirm(
-                      "Tem certeza? Isso vai deletar todos os seus dados do FlowZone."
-                    )
-                  ) {
-                    localStorage.removeItem("flowzone-data");
-                    window.location.reload();
-                  }
-                }}
-                className="w-full px-4 py-2 bg-red-500 text-white rounded-lg font-medium hover:bg-red-600 transition-colors"
-              >
-                🗑️ Limpar Todos os Dados
-              </button>
+              <div className="mt-3 inline-flex items-center gap-2 bg-amber-500/20 text-amber-400 px-3 py-1 rounded-full text-sm">
+                <Sparkles size={14} />
+                Premium Productivity
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="mt-8 text-center text-sm text-muted-foreground">
-          <p>FlowZone © 2026 • Produtividade Pessoal Premium</p>
+        <div className="space-y-6">
+          {/* PERFIL */}
+          <motion.div whileHover={{ scale: 1.01 }} className={cardClass}>
+            <div className="flex items-center gap-3 mb-5">
+              <User className="text-[#3B82F6]" />
+              <h2 className="text-2xl font-bold">👤 Perfil</h2>
+            </div>
+
+            <div className="space-y-4">
+              <input
+                type="text"
+                placeholder="Nome"
+                value={profile.name}
+                onChange={e =>
+                  setProfile({
+                    ...profile,
+                    name: e.target.value,
+                  })
+                }
+                className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl px-4 py-3"
+              />
+
+              <input
+                type="text"
+                placeholder="URL da foto"
+                value={profile.avatar}
+                onChange={e =>
+                  setProfile({
+                    ...profile,
+                    avatar: e.target.value,
+                  })
+                }
+                className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl px-4 py-3"
+              />
+
+              <textarea
+                rows={4}
+                placeholder="Sua bio"
+                value={profile.bio}
+                onChange={e =>
+                  setProfile({
+                    ...profile,
+                    bio: e.target.value,
+                  })
+                }
+                className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl px-4 py-3 resize-none"
+              />
+
+              <button
+                onClick={saveProfile}
+                className="bg-[#3B82F6] hover:bg-[#2563EB] text-white font-bold px-5 py-3 rounded-2xl flex items-center gap-2 transition-all shadow-lg shadow-[#3B82F6]/20 hover:shadow-[#3B82F6]/30"
+              >
+                <Save size={18} />
+                Salvar Perfil
+              </button>
+            </div>
+          </motion.div>
+
+          {/* APARÊNCIA */}
+          <motion.div whileHover={{ scale: 1.01 }} className={cardClass}>
+            <div className="flex items-center gap-3 mb-5">
+              <Palette className="text-pink-400" />
+              <h2 className="text-2xl font-bold">🎨 Aparência</h2>
+            </div>
+
+            <div className="space-y-4">
+              <div className="flex items-center justify-between bg-zinc-950 rounded-2xl p-4 border border-zinc-800">
+                <div>
+                  <p className="font-medium">Animações</p>
+
+                  <p className="text-sm text-zinc-400">
+                    Ativar efeitos visuais
+                  </p>
+                </div>
+
+                <button
+                  onClick={toggleAnimations}
+                  className={`px-4 py-2 rounded-xl font-medium transition-all ${
+                    animationsEnabled
+                      ? "bg-[#3B82F6] text-white shadow-lg shadow-[#3B82F6]/20"
+                      : "bg-zinc-700"
+                  }`}
+                >
+                  {animationsEnabled ? "Ativado" : "Desativado"}
+                </button>
+              </div>
+            </div>
+          </motion.div>
+
+          {/* NOTIFICAÇÕES */}
+          <motion.div whileHover={{ scale: 1.01 }} className={cardClass}>
+            <div className="flex items-center gap-3 mb-5">
+              <Bell className="text-blue-400" />
+              <h2 className="text-2xl font-bold">🔔 Notificações</h2>
+            </div>
+
+            <div className="space-y-3">
+              {[
+                {
+                  key: "habits",
+                  label: "Hábitos",
+                },
+                {
+                  key: "tasks",
+                  label: "Tarefas",
+                },
+                {
+                  key: "academy",
+                  label: "Academia",
+                },
+              ].map(item => (
+                <div
+                  key={item.key}
+                  className="flex items-center justify-between bg-zinc-950 border border-zinc-800 rounded-2xl p-4"
+                >
+                  <span>{item.label}</span>
+
+                  <button
+                    onClick={() =>
+                      toggleNotification(item.key as keyof typeof notifications)
+                    }
+                    className={`w-14 h-7 rounded-full relative transition-all ${
+                      notifications[item.key as keyof typeof notifications]
+                        ? "bg-[#3B82F6] shadow-lg shadow-[#3B82F6]/30"
+                        : "bg-zinc-700"
+                    }`}
+                  >
+                    <div
+                      className={`absolute top-1 w-5 h-5 bg-white rounded-full ${
+                        notifications[item.key as keyof typeof notifications]
+                          ? "right-1"
+                          : "left-1"
+                      }`}
+                    />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+
+          {/* CONTA */}
+          <motion.div whileHover={{ scale: 1.01 }} className={cardClass}>
+            <div className="flex items-center gap-3 mb-5">
+              <Shield className="text-red-400" />
+              <h2 className="text-2xl font-bold">🔐 Conta</h2>
+            </div>
+
+            <div className="space-y-4">
+              <button
+                onClick={resetPassword}
+                className="w-full flex items-center gap-3 bg-zinc-950 border border-zinc-800 rounded-2xl p-4 hover:border-[#3B82F6]/40 transition-all"
+              >
+                <Lock />
+                Alterar senha
+              </button>
+
+              <button
+                onClick={logout}
+                className="w-full flex items-center gap-3 bg-red-500/20 border border-red-500/20 text-red-400 rounded-2xl p-4"
+              >
+                <LogOut />
+                Sair da conta
+              </button>
+            </div>
+          </motion.div>
+
+          {/* SOBRE */}
+          <motion.div whileHover={{ scale: 1.01 }} className={cardClass}>
+            <div className="flex items-center gap-3 mb-5">
+              <Info className="text-zinc-300" />
+              <h2 className="text-2xl font-bold">📱 Sobre</h2>
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex justify-between bg-zinc-950 border border-zinc-800 rounded-2xl p-4">
+                <span>Versão do app</span>
+                <span className="text-zinc-400">2.0.0</span>
+              </div>
+
+              <div className="flex justify-between bg-zinc-950 border border-zinc-800 rounded-2xl p-4">
+                <span>Status</span>
+                <span className="text-[#3B82F6]">Online</span>
+              </div>
+            </div>
+          </motion.div>
         </div>
       </div>
     </div>

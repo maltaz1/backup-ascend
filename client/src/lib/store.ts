@@ -334,8 +334,8 @@ const DEFAULT_DATA: AppData = {
     dietStreak: 0,
   },
   financial: {
-  transactions: [],
-},
+    transactions: [],
+  },
 };
 
 function generateId(): string {
@@ -412,6 +412,10 @@ function loadData(): AppData {
       prayerConversations: normalizedPrayerConversations,
       favoritePrayers: normalizedFavoritePrayers,
       diet: normalizedDiet,
+
+      financial: parsed.financial || {
+        transactions: [],
+      },
     };
   } catch {
     return { ...DEFAULT_DATA, achievements: DEFAULT_ACHIEVEMENTS };
@@ -536,28 +540,108 @@ function checkAchievements(): string[] {
 
 // ─── TASKS ────────────────────────────────────────────────────────────────────
 
-export function addTask(task: Omit<Task, "id" | "createdAt">): Task {
+export async function addTask(
+  task: Omit<Task, "id" | "createdAt">
+): Promise<Task | null> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return null;
+
+  const { data, error } = await supabase
+    .from("tasks")
+    .insert([
+      {
+        user_id: user.id,
+        title: task.title,
+        description: task.description,
+        date: task.date,
+        completed: task.completed,
+        priority: task.priority,
+        category: task.category,
+      },
+    ])
+    .select()
+    .single();
+
+  if (error) {
+    console.error("Erro ao adicionar tarefa:", error);
+    return null;
+  }
+
   const newTask: Task = {
-    ...task,
-    id: generateId(),
-    createdAt: new Date().toISOString(),
+    id: data.id,
+    title: data.title,
+    description: data.description,
+    date: data.date,
+    completed: data.completed,
+    priority: data.priority,
+    category: data.category,
+    createdAt: data.created_at,
   };
+
   _data.tasks.push(newTask);
+
   saveData(_data);
   notify();
+
   return newTask;
 }
 
-export function updateTask(id: string, updates: Partial<Task>): void {
+export async function updateTask(
+  id: string,
+  updates: Partial<Task>
+): Promise<void> {
+  const updatesToDb: any = {};
+
+  if (updates.title !== undefined) updatesToDb.title = updates.title;
+
+  if (updates.description !== undefined)
+    updatesToDb.description = updates.description;
+
+  if (updates.date !== undefined) updatesToDb.date = updates.date;
+
+  if (updates.completed !== undefined)
+    updatesToDb.completed = updates.completed;
+
+  if (updates.priority !== undefined) updatesToDb.priority = updates.priority;
+
+  if (updates.category !== undefined) updatesToDb.category = updates.category;
+
+  const { error } = await supabase
+    .from("tasks")
+    .update(updatesToDb)
+    .eq("id", id);
+
+  if (error) {
+    console.error(error);
+    return;
+  }
+
   const idx = _data.tasks.findIndex(t => t.id === id);
-  if (idx === -1) return;
-  _data.tasks[idx] = { ..._data.tasks[idx], ...updates };
+
+  if (idx !== -1) {
+    _data.tasks[idx] = {
+      ..._data.tasks[idx],
+      ...updates,
+    };
+  }
+
   saveData(_data);
   notify();
 }
 
-export function deleteTask(id: string): void {
+export async function deleteTask(id: string): Promise<void> {
+  const { error } = await supabase.from("tasks").delete().eq("id", id);
+
+  if (error) {
+    console.error(error);
+    return;
+  }
+
   _data.tasks = _data.tasks.filter(t => t.id !== id);
+
   saveData(_data);
   notify();
 }
@@ -1583,6 +1667,71 @@ export async function loadFinancialData() {
   notify();
 }
 
+export async function loadTasksData() {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return;
+
+  const { data, error } = await supabase
+    .from("tasks")
+    .select("*")
+    .eq("user_id", user.id);
+
+  if (error) {
+    console.error("Erro ao carregar tarefas:", error);
+    return;
+  }
+
+  _data.tasks = (data || []).map(task => ({
+    id: task.id,
+    title: task.title,
+    description: task.description,
+    date: task.date,
+    completed: task.completed,
+    priority: task.priority,
+    category: task.category,
+    createdAt: task.created_at,
+  }));
+
+  saveData(_data);
+  notify();
+}
+
+export async function loadGoalsData() {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return;
+
+  const { data, error } = await supabase
+    .from("goals")
+    .select("*")
+    .eq("user_id", user.id);
+
+  if (error) {
+    console.error("Erro ao carregar metas:", error);
+    return;
+  }
+
+  _data.goals = (data || []).map(goal => ({
+    id: goal.id,
+    title: goal.title,
+    emoji: goal.emoji,
+    description: goal.description,
+    steps: goal.steps || [],
+    deadline: goal.deadline,
+    color: goal.color,
+    createdAt: goal.created_at,
+    completedAt: goal.completed_at,
+  }));
+
+  saveData(_data);
+  notify();
+}
+
 export async function deleteTransaction(id: string) {
   const { error } = await supabase
     .from("financial_transactions")
@@ -1594,8 +1743,9 @@ export async function deleteTransaction(id: string) {
     return;
   }
 
-  _data.financial.transactions =
-    _data.financial.transactions.filter(t => t.id !== id);
+  _data.financial.transactions = _data.financial.transactions.filter(
+    t => t.id !== id
+  );
 
   saveData(_data);
   notify();

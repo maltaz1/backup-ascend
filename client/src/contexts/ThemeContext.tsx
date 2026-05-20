@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 
+
 type Theme = "light" | "dark";
 
 interface ThemeContextType {
@@ -56,9 +57,11 @@ export function ThemeProvider({
 }
 
 export function useTheme() {
-  const context = useContext(ThemeContext);
+  const context = React.useContext(ThemeContext);
+
   if (!context) {
     throw new Error("useTheme must be used within ThemeProvider");
   }
+
   return context;
 }

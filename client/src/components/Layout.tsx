@@ -24,7 +24,7 @@ import { getLevelProgress } from '@/lib/store';
 import { AnimatedCounter } from './ui/AnimatedCounter';
 import { CircularProgress } from './ui/CircularProgress';
 
-type Tab = 'dashboard' | 'today' | 'tasks' | 'goals' | 'habits' | 'prayer' | 'diet' | 'financial' | 'calendar' | 'achievements' | 'academy' | 'evolution' | 'settings';
+type Tab = 'dashboard' | 'today' | 'tasks' | 'goals' | 'habits' | 'prayer' | 'diet' | 'financial' | 'calendar' | 'academy' | 'evolution' | 'settings';
 
 interface LayoutProps {
   activeTab: Tab;
@@ -42,7 +42,6 @@ const navItems = [
   { id: 'diet' as Tab, label: 'Dieta', icon: Apple },
   { id: 'financial' as Tab, label: 'Financeiro', icon: DollarSign },
   { id: 'calendar' as Tab, label: 'Calendário', icon: Calendar },
-  { id: 'achievements' as Tab, label: 'Conquistas', icon: Trophy },
   { id: 'academy' as Tab, label: 'Academia', icon: Dumbbell },
   { id: 'settings' as Tab, label: 'Configurações', icon: Zap },
 ];
@@ -117,13 +116,8 @@ export function Layout({ activeTab, onTabChange, children }: LayoutProps) {
         }}
       >
         {/* Logo */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '0 4px', marginBottom: 28, overflow: 'hidden' }}>
-          <img src="/src/image/logo.jpg" alt="FlowZone Logo" style={{ width: 32, height: 32, flexShrink: 0 }} />
-          {!collapsed && (
-            <div style={{ fontFamily: 'Space Grotesk', fontWeight: 700, fontSize: 16, color: 'white', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              Ascend
-            </div>
-          )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '0 2px', marginBottom: 0, overflow: 'hidden' }}>
+          <img src="/src/image/Logo-TaskBar.png" alt="FlowZone Logo" style={{ width: 128, height: 80, flexShrink: 0 }} />
         </div>
 
 

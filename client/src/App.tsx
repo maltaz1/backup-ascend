@@ -8,8 +8,12 @@ import { ThemeProvider } from "./contexts/ThemeContext";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { Layout } from "./components/Layout";
 import { FlowToastContainer } from "./components/ui/FlowToast";
-import { loadDietData, loadFinancialData } from "./lib/store";
-
+import {
+  loadDietData,
+  loadFinancialData,
+  loadTasksData,
+  loadGoalsData,
+} from "./lib/store";
 
 // Pages
 import Dashboard from "./pages/Dashboard";
@@ -20,7 +24,6 @@ import Habits from "./pages/Habits";
 import Prayer from "./pages/Prayer";
 import Diet from "./pages/Diet";
 import CalendarView from "./pages/CalendarView";
-import Achievements from "./pages/Achievements";
 import Academy from "./pages/Academy";
 import Evolution from "./pages/Evolution";
 import Settings from "./pages/Settings";
@@ -39,7 +42,6 @@ type Tab =
   | "diet"
   | "financial"
   | "calendar"
-  | "achievements"
   | "academy"
   | "evolution"
   | "settings";
@@ -67,8 +69,6 @@ function AppContent() {
         return <Financial />;
       case "calendar":
         return <CalendarView />;
-      case "achievements":
-        return <Achievements />;
       case "academy":
         return <Academy onTabChange={setActiveTab} />;
       case "evolution":
@@ -92,51 +92,53 @@ function App() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-  async function init() {
-    try {
-      const { data } = await supabase.auth.getUser();
+    async function init() {
+      try {
+        const { data } = await supabase.auth.getUser();
 
-      setUser(data.user);
+        setUser(data.user);
 
-      if (data.user) {
-        await loadGymData();
-        await loadDietData();
-        await loadFinancialData();
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("*")
-          .eq("id", data.user.id)
-          .single();
+        if (data.user) {
+          await loadGymData();
+          await loadDietData();
+          await loadFinancialData();
+          await loadTasksData();
+          await loadGoalsData();
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("*")
+            .eq("id", data.user.id)
+            .single();
 
-        if (!profile) {
-          await supabase.from("profiles").insert({
-            id: data.user.id,
-            name: data.user.email?.split("@")[0],
-            level: 1,
-            xp: 0,
-            streak: 0,
-          });
+          if (!profile) {
+            await supabase.from("profiles").insert({
+              id: data.user.id,
+              name: data.user.email?.split("@")[0],
+              level: 1,
+              xp: 0,
+              streak: 0,
+            });
+          }
         }
+      } catch (error) {
+        console.error("ERRO INIT:", error);
+      } finally {
+        setLoading(false);
       }
-    } catch (error) {
-      console.error("ERRO INIT:", error);
-    } finally {
-      setLoading(false);
     }
-  }
 
-  init();
+    init();
 
-  const { data: listener } = supabase.auth.onAuthStateChange(
-    (_event, session) => {
-      setUser(session?.user ?? null);
-    }
-  );
+    const { data: listener } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        setUser(session?.user ?? null);
+      }
+    );
 
-  return () => {
-    listener.subscription.unsubscribe();
-  };
-}, []);
+    return () => {
+      listener.subscription.unsubscribe();
+    };
+  }, []);
 
   if (loading) {
     return <div style={{ color: "white", padding: 20 }}>Carregando...</div>;
