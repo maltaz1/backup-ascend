@@ -426,6 +426,16 @@ function saveData(data: AppData): void {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
 }
 
+let saveTimeout: NodeJS.Timeout;
+
+function saveDataDebounced(data: AppData) {
+  clearTimeout(saveTimeout);
+
+  saveTimeout = setTimeout(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  }, 200);
+}
+
 // Reactive store using event emitter pattern
 type Listener = () => void;
 const listeners = new Set<Listener>();
@@ -446,7 +456,7 @@ function checkAndUpdateStreak(): void {
 
   if (diffDays > 1) {
     _data.user.streak = 0;
-    saveData(_data);
+    saveDataDebounced(_data);
   }
 }
 
@@ -457,8 +467,14 @@ export function subscribe(listener: Listener): () => void {
   return () => listeners.delete(listener);
 }
 
+let notifyTimeout: NodeJS.Timeout;
+
 export function notify(): void {
-  listeners.forEach(l => l());
+  clearTimeout(notifyTimeout);
+
+  notifyTimeout = setTimeout(() => {
+    listeners.forEach(l => l());
+  }, 0);
 }
 
 export function getData(): AppData {
@@ -488,13 +504,31 @@ function markActiveToday(): void {
   }
 }
 
-function addXP(amount: number): void {
+export async function addXP(amount: number) {
   _data.user.xp += amount;
-  const xpForNext = XP_FOR_LEVEL(_data.user.level);
-  while (_data.user.xp >= xpForNext) {
-    _data.user.xp -= xpForNext;
+
+  while (_data.user.xp >= XP_FOR_LEVEL(_data.user.level)) {
+    _data.user.xp -= XP_FOR_LEVEL(_data.user.level);
+
     _data.user.level += 1;
   }
+
+  saveDataDebounced(_data);
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return;
+
+  await supabase
+    .from("profiles")
+    .update({
+      xp: _data.user.xp,
+      level: _data.user.level,
+      streak: _data.user.streak,
+    })
+    .eq("id", user.id);
 }
 
 function checkAchievements(): string[] {
@@ -543,113 +577,143 @@ function checkAchievements(): string[] {
 export async function addTask(
   task: Omit<Task, "id" | "createdAt">
 ): Promise<Task | null> {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
 
-  if (!user) return null;
-
-  const { data, error } = await supabase
-    .from("tasks")
-    .insert([
-      {
-        user_id: user.id,
-        title: task.title,
-        description: task.description,
-        date: task.date,
-        completed: task.completed,
-        priority: task.priority,
-        category: task.category,
-      },
-    ])
-    .select()
-    .single();
-
-  if (error) {
-    console.error("Erro ao adicionar tarefa:", error);
-    return null;
-  }
-
-  const newTask: Task = {
-    id: data.id,
-    title: data.title,
-    description: data.description,
-    date: data.date,
-    completed: data.completed,
-    priority: data.priority,
-    category: data.category,
-    createdAt: data.created_at,
+  const optimisticTask: Task = {
+    ...task,
+    id: crypto.randomUUID(),
+    createdAt: new Date().toISOString(),
   };
 
-  _data.tasks.push(newTask);
+  // UI INSTANTÂNEA
+  _data.tasks.push(optimisticTask);
 
-  saveData(_data);
+  saveDataDebounced(_data);
   notify();
 
-  return newTask;
+  // SUPABASE EM BACKGROUND
+  try {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) return optimisticTask;
+
+    const { data, error } = await supabase
+      .from("tasks")
+      .insert([
+        {
+          user_id: user.id,
+          title: task.title,
+          description: task.description,
+          date: task.date,
+          completed: task.completed,
+          priority: task.priority,
+          category: task.category,
+        },
+      ])
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    // troca id temporário pelo real
+    const index = _data.tasks.findIndex(
+      t => t.id === optimisticTask.id
+    );
+
+    if (index !== -1) {
+      _data.tasks[index] = {
+        ...optimisticTask,
+        id: data.id,
+      };
+    }
+
+    saveDataDebounced(_data);
+    notify();
+
+    return _data.tasks[index];
+  } catch (error) {
+    console.error(error);
+
+    // rollback
+    _data.tasks = _data.tasks.filter(
+      t => t.id !== optimisticTask.id
+    );
+
+    saveDataDebounced(_data);
+    notify();
+
+    return null;
+  }
 }
 
 export async function updateTask(
   id: string,
   updates: Partial<Task>
 ): Promise<void> {
-  const updatesToDb: any = {};
-
-  if (updates.title !== undefined) updatesToDb.title = updates.title;
-
-  if (updates.description !== undefined)
-    updatesToDb.description = updates.description;
-
-  if (updates.date !== undefined) updatesToDb.date = updates.date;
-
-  if (updates.completed !== undefined)
-    updatesToDb.completed = updates.completed;
-
-  if (updates.priority !== undefined) updatesToDb.priority = updates.priority;
-
-  if (updates.category !== undefined) updatesToDb.category = updates.category;
-
-  const { error } = await supabase
-    .from("tasks")
-    .update(updatesToDb)
-    .eq("id", id);
-
-  if (error) {
-    console.error(error);
-    return;
-  }
-
   const idx = _data.tasks.findIndex(t => t.id === id);
+  if (idx === -1) return;
 
-  if (idx !== -1) {
-    _data.tasks[idx] = {
-      ..._data.tasks[idx],
-      ...updates,
-    };
-  }
+  const previousTask = { ..._data.tasks[idx] };
+  _data.tasks[idx] = {
+    ..._data.tasks[idx],
+    ...updates,
+  };
 
-  saveData(_data);
   notify();
+  saveDataDebounced(_data);
+
+  void (async () => {
+    const updatesToDb: any = {};
+
+    if (updates.title !== undefined) updatesToDb.title = updates.title;
+    if (updates.description !== undefined)
+      updatesToDb.description = updates.description;
+    if (updates.date !== undefined) updatesToDb.date = updates.date;
+    if (updates.completed !== undefined)
+      updatesToDb.completed = updates.completed;
+    if (updates.priority !== undefined) updatesToDb.priority = updates.priority;
+    if (updates.category !== undefined) updatesToDb.category = updates.category;
+
+    if (Object.keys(updatesToDb).length === 0) return;
+
+    const { error } = await supabase
+      .from("tasks")
+      .update(updatesToDb)
+      .eq("id", id);
+
+    if (error) {
+      console.error(error);
+      _data.tasks[idx] = previousTask;
+      notify();
+      saveDataDebounced(_data);
+    }
+  })();
 }
 
 export async function deleteTask(id: string): Promise<void> {
-  const { error } = await supabase.from("tasks").delete().eq("id", id);
-
-  if (error) {
-    console.error(error);
-    return;
-  }
-
+  const previousTasks = [..._data.tasks];
   _data.tasks = _data.tasks.filter(t => t.id !== id);
 
-  saveData(_data);
   notify();
+  saveDataDebounced(_data);
+
+  void (async () => {
+    const { error } = await supabase.from("tasks").delete().eq("id", id);
+
+    if (error) {
+      console.error(error);
+      _data.tasks = previousTasks;
+      notify();
+      saveDataDebounced(_data);
+    }
+  })();
 }
 
-export function completeTask(id: string): {
+export async function completeTask(id: string): Promise<{
   xpGained: number;
   newAchievements: string[];
-} {
+}> {
   const task = _data.tasks.find(t => t.id === id);
   if (!task || task.completed) return { xpGained: 0, newAchievements: [] };
 
@@ -658,21 +722,65 @@ export function completeTask(id: string): {
   markActiveToday();
   addXP(XP_PER_TASK);
   const newAchievements = checkAchievements();
-  saveData(_data);
+
   notify();
+  saveDataDebounced(_data);
+
+  void (async () => {
+    const { error } = await supabase
+      .from("tasks")
+      .update({
+        completed: true,
+      })
+      .eq("id", id);
+
+    if (error) {
+      console.error(error);
+      task.completed = false;
+      _data.user.totalTasksCompleted = Math.max(
+        0,
+        _data.user.totalTasksCompleted - 1
+      );
+      notify();
+      saveDataDebounced(_data);
+    }
+  })();
+
   return { xpGained: XP_PER_TASK, newAchievements };
 }
 
-export function uncompleteTask(id: string): void {
+export async function uncompleteTask(id: string): Promise<void> {
   const task = _data.tasks.find(t => t.id === id);
   if (!task || !task.completed) return;
+
+  const previousCompleted = task.completed;
+  const previousTotal = _data.user.totalTasksCompleted;
+
   task.completed = false;
   _data.user.totalTasksCompleted = Math.max(
     0,
     _data.user.totalTasksCompleted - 1
   );
-  saveData(_data);
+
   notify();
+  saveDataDebounced(_data);
+
+  void (async () => {
+    const { error } = await supabase
+      .from("tasks")
+      .update({
+        completed: false,
+      })
+      .eq("id", id);
+
+    if (error) {
+      console.error(error);
+      task.completed = previousCompleted;
+      _data.user.totalTasksCompleted = previousTotal;
+      notify();
+      saveDataDebounced(_data);
+    }
+  })();
 }
 
 export function getTasksForDate(date: string): Task[] {
@@ -695,7 +803,7 @@ export function addGoal(goal: Omit<Goal, "id" | "createdAt">): Goal {
     createdAt: new Date().toISOString(),
   };
   _data.goals.push(newGoal);
-  saveData(_data);
+  saveDataDebounced(_data);
   notify();
   return newGoal;
 }
@@ -704,20 +812,24 @@ export function updateGoal(id: string, updates: Partial<Goal>): void {
   const idx = _data.goals.findIndex(g => g.id === id);
   if (idx === -1) return;
   _data.goals[idx] = { ..._data.goals[idx], ...updates };
-  saveData(_data);
+  saveDataDebounced(_data);
   notify();
 }
 
 export function deleteGoal(id: string): void {
   _data.goals = _data.goals.filter(g => g.id !== id);
-  saveData(_data);
+  saveDataDebounced(_data);
   notify();
 }
 
-export function toggleGoalStep(
+export async function toggleGoalStep(
   goalId: string,
   stepId: string
-): { xpGained: number; goalCompleted: boolean; newAchievements: string[] } {
+): Promise<{
+  xpGained: number;
+  goalCompleted: boolean;
+  newAchievements: string[];
+}> {
   const goal = _data.goals.find(g => g.id === goalId);
   if (!goal) return { xpGained: 0, goalCompleted: false, newAchievements: [] };
 
@@ -748,7 +860,7 @@ export function toggleGoalStep(
   }
 
   const newAchievements = checkAchievements();
-  saveData(_data);
+  saveDataDebounced(_data);
   notify();
   return { xpGained, goalCompleted, newAchievements };
 }
@@ -772,9 +884,8 @@ export function addHabit(
     completedDates: [],
   };
   _data.habits.push(newHabit);
-  saveData(_data);
+  saveDataDebounced(_data);
   // Forçar recarga dos dados para sincronizar
-  _data = loadData();
   notify();
   return newHabit;
 }
@@ -783,20 +894,20 @@ export function updateHabit(id: string, updates: Partial<Habit>): void {
   const idx = _data.habits.findIndex(h => h.id === id);
   if (idx === -1) return;
   _data.habits[idx] = { ..._data.habits[idx], ...updates };
-  saveData(_data);
+  saveDataDebounced(_data);
   notify();
 }
 
 export function deleteHabit(id: string): void {
   _data.habits = _data.habits.filter(h => h.id !== id);
-  saveData(_data);
+  saveDataDebounced(_data);
   notify();
 }
 
-export function toggleHabitDate(
+export async function toggleHabitDate(
   habitId: string,
   date: string
-): { xpGained: number } {
+): Promise<{ xpGained: number }> {
   const habit = _data.habits.find(h => h.id === habitId);
   if (!habit) return { xpGained: 0 };
 
@@ -806,16 +917,15 @@ export function toggleHabitDate(
   if (idx === -1) {
     habit.completedDates.push(date);
     markActiveToday();
-    addXP(XP_PER_HABIT);
+    await addXP(XP_PER_HABIT);
     xpGained = XP_PER_HABIT;
     checkAchievements();
   } else {
     habit.completedDates.splice(idx, 1);
   }
 
-  saveData(_data);
+  saveDataDebounced(_data);
   // Forçar recarga dos dados para sincronizar
-  _data = loadData();
   notify();
   return { xpGained };
 }
@@ -869,7 +979,7 @@ export function getHabitStreak(habit: Habit): number {
 
 export function updateUserName(name: string): void {
   _data.user.name = name;
-  saveData(_data);
+  saveDataDebounced(_data);
   notify();
 }
 
@@ -1011,7 +1121,7 @@ export async function addWorkout(
 
   _data.workouts.push(newWorkout);
 
-  saveData(_data);
+  saveDataDebounced(_data);
   notify();
 
   return newWorkout;
@@ -1051,7 +1161,7 @@ export async function updateWorkout(
     Object.assign(workout, updates);
   }
 
-  saveData(_data);
+  saveDataDebounced(_data);
   notify();
 }
 
@@ -1115,7 +1225,7 @@ export async function addWorkoutSession(
   _data.workoutSessions.push(newSession);
 
   markActiveToday();
-  addXP(XP_PER_WORKOUT);
+  await addXP(XP_PER_WORKOUT);
   checkAchievements();
 
   notify();
@@ -1243,7 +1353,7 @@ export function createPrayerConversation(title: string): PrayerConversation {
     _data.prayerConversations = [];
   }
   _data.prayerConversations.push(conversation);
-  saveData(_data);
+  saveDataDebounced(_data);
   notify();
   return conversation;
 }
@@ -1287,7 +1397,7 @@ export function addPrayerMessage(
       content.substring(0, 50) + (content.length > 50 ? "..." : "");
   }
 
-  saveData(_data);
+  saveDataDebounced(_data);
   notify();
   return message;
 }
@@ -1295,7 +1405,7 @@ export function addPrayerMessage(
 export function deletePrayerConversation(id: string): void {
   _data.prayerConversations =
     _data.prayerConversations?.filter(c => c.id !== id) || [];
-  saveData(_data);
+  saveDataDebounced(_data);
   notify();
 }
 
@@ -1316,7 +1426,7 @@ export function addFavoritePrayer(
     _data.favoritePrayers = [];
   }
   _data.favoritePrayers.push(favorite);
-  saveData(_data);
+  saveDataDebounced(_data);
   notify();
   return favorite;
 }
@@ -1327,7 +1437,7 @@ export function getFavoritePrayers(): FavoritePrayer[] {
 
 export function removeFavoritePrayer(id: string): void {
   _data.favoritePrayers = _data.favoritePrayers?.filter(p => p.id !== id) || [];
-  saveData(_data);
+  saveDataDebounced(_data);
   notify();
 }
 
@@ -1403,7 +1513,7 @@ export async function loadDietData() {
     };
   }
 
-  saveData(_data);
+  saveDataDebounced(_data);
   notify();
 }
 
@@ -1451,7 +1561,7 @@ export async function addMeal(meal: Omit<Meal, "id" | "timestamp">) {
     timestamp: new Date().toISOString(),
   });
 
-  saveData(_data);
+  saveDataDebounced(_data);
   notify();
 }
 
@@ -1463,7 +1573,7 @@ export function updateMeal(id: string, updates: Partial<Meal>): void {
   const idx = _data.diet.meals.findIndex(m => m.id === id);
   if (idx === -1) return;
   _data.diet.meals[idx] = { ..._data.diet.meals[idx], ...updates };
-  saveData(_data);
+  saveDataDebounced(_data);
   notify();
 }
 
@@ -1525,7 +1635,7 @@ export async function updateDietSettings(
 
   _data.diet.settings = settings;
 
-  saveData(_data);
+  saveDataDebounced(_data);
 
   notify();
 }
@@ -1581,7 +1691,7 @@ export async function addWaterCup(): Promise<void> {
     ]);
   }
 
-  saveData(_data);
+  saveDataDebounced(_data);
 }
 
 export function getTodayHydration() {
@@ -1597,7 +1707,7 @@ export function getTodayHydration() {
 
 export function addDietPoints(points: number): void {
   _data.diet.dietPoints += points;
-  saveData(_data);
+  saveDataDebounced(_data);
   notify();
 }
 
@@ -1663,7 +1773,7 @@ export async function loadFinancialData() {
     createdAt: item.created_at,
   }));
 
-  saveData(_data);
+  saveDataDebounced(_data);
   notify();
 }
 
@@ -1695,7 +1805,7 @@ export async function loadTasksData() {
     createdAt: task.created_at,
   }));
 
-  saveData(_data);
+  saveDataDebounced(_data);
   notify();
 }
 
@@ -1728,7 +1838,7 @@ export async function loadGoalsData() {
     completedAt: goal.completed_at,
   }));
 
-  saveData(_data);
+  saveDataDebounced(_data);
   notify();
 }
 
@@ -1747,7 +1857,7 @@ export async function deleteTransaction(id: string) {
     t => t.id !== id
   );
 
-  saveData(_data);
+  saveDataDebounced(_data);
   notify();
 }
 
@@ -1798,6 +1908,6 @@ export async function addTransaction(transaction: {
     createdAt: data.created_at,
   });
 
-  saveData(_data);
+  saveDataDebounced(_data);
   notify();
 }

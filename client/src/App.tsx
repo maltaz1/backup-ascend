@@ -13,6 +13,7 @@ import {
   loadFinancialData,
   loadTasksData,
   loadGoalsData,
+  _data,
 } from "./lib/store";
 
 // Pages
@@ -99,16 +100,25 @@ function App() {
         setUser(data.user);
 
         if (data.user) {
-          await loadGymData();
-          await loadDietData();
-          await loadFinancialData();
-          await loadTasksData();
-          await loadGoalsData();
+        await Promise.all([
+          loadGymData(),
+          loadDietData(),
+          loadFinancialData(),
+          loadTasksData(),
+          loadGoalsData()
+        ]);
           const { data: profile } = await supabase
             .from("profiles")
             .select("*")
             .eq("id", data.user.id)
             .single();
+
+          if (profile) {
+            _data.user.xp = profile.xp || 0;
+            _data.user.level = profile.level || 1;
+            _data.user.streak = profile.streak || 0;
+            _data.user.name = profile.name || "Usuário";
+          }
 
           if (!profile) {
             await supabase.from("profiles").insert({

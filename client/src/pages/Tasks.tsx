@@ -14,6 +14,8 @@ import {
   CheckCircle2,
 } from "lucide-react";
 
+import { addXP } from "@/lib/store";
+
 import { useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 
@@ -602,26 +604,40 @@ export default function Tasks() {
   }, [tasks, selectedDate, search, filterStatus, today]);
 
   const handleToggle = async (task: Task) => {
+    const newCompleted = !task.completed;
+
     const { error } = await supabase
       .from("tasks")
-      .update({ completed: !task.completed })
+      .update({
+        completed: newCompleted,
+      })
       .eq("id", task.id);
+
+    if (error) {
+      showToast("Erro ao atualizar tarefa", "info");
+      return;
+    }
+
+    // ganha XP apenas quando completa
+    if (newCompleted) {
+      await addXP(10);
+    }
+
+    fetchTasks();
+
+    showToast(
+      newCompleted ? "Tarefa concluída!" : "Tarefa desmarcada",
+      "success"
+    );
+  };
+
+  const handleDelete = async (id: string) => {
+    const { error } = await supabase.from("tasks").delete().eq("id", id);
 
     if (!error) {
       fetchTasks();
     }
   };
-
-  const handleDelete = async (id: string) => {
-  const { error } = await supabase
-    .from('tasks')
-    .delete()
-    .eq('id', id);
-
-  if (!error) {
-    fetchTasks();
-  }
-};
 
   const selectedDateFormatted = new Date(
     selectedDate + "T00:00:00"

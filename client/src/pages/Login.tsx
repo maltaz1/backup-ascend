@@ -344,13 +344,10 @@ export default function Login() {
 
           {/* Logo */}
           <div className="logo-area">
-            <div className="logo-icon">
-              <svg viewBox="0 0 24 24">
-                <polyline points="22 7 13.5 15.5 8.5 10.5 2 17" />
-                <polyline points="16 7 22 7 22 13" />
-              </svg>
+            <div className="logo">
+              <img src="/src/image/Logo-TaskBar.png" alt="FlowZone Logo" style={{ width: 128, height: 90, flexShrink: 0, margin: 0}} />
             </div>
-            <span className="logo-name">ASCEND</span>
+            
           </div>
 
           {/* Tab switcher */}

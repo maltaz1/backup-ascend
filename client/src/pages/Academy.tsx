@@ -31,6 +31,7 @@ import {
   generateId,
   getTodayString,
   XP_PER_WORKOUT,
+  addXP,
   WorkoutSet as StoreWorkoutSet,
 } from "@/lib/store";
 import {
@@ -207,7 +208,7 @@ export default function Academy({ onTabChange }: AcademyProps) {
     setShowWorkoutModal(true);
   };
 
-  const handleFinishWorkout = () => {
+  const handleFinishWorkout = async () => {
     if (!workoutInProgress) return;
 
     const durationMinutes = Math.round(
@@ -228,7 +229,7 @@ export default function Academy({ onTabChange }: AcademyProps) {
       };
     });
 
-    addWorkoutSession({
+     await addWorkoutSession({
       workoutId: workoutInProgress.workoutId,
       workoutName: workoutInProgress.workoutName,
       date: getTodayString(),
@@ -236,6 +237,8 @@ export default function Academy({ onTabChange }: AcademyProps) {
       exercises,
       totalVolume,
     });
+
+    await addXP(XP_PER_WORKOUT);
 
     setWorkoutInProgress(null);
     setShowWorkoutModal(false);

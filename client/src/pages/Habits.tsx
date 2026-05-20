@@ -14,6 +14,8 @@ import {
   Download,
 } from "lucide-react";
 
+import { addXP } from "@/lib/store";
+
 import {
   AreaChart,
   Area,
@@ -182,7 +184,13 @@ function HabitRow({
       return;
     }
 
-    showXP(10, e.clientX, e.clientY);
+    const wasCompleted = habit.completedDates.includes(dateStr);
+
+    if (!wasCompleted) {
+      await addXP(5);
+
+      showXP(5, e.clientX, e.clientY);
+    }
 
     reloadHabits();
   };

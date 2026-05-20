@@ -95,31 +95,77 @@ export default function Settings() {
   const cardClass =
     "bg-zinc-900/80 border border-zinc-800 rounded-3xl p-6 hover:border-[#3B82F6]/40 hover:bg-zinc-800/60 transition-all";
 
-    async function resetPassword() {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  async function resetPassword() {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
-  if (!user?.email) {
-    alert("Usuário não encontrado");
-    return;
+    if (!user?.email) {
+      alert("Usuário não encontrado");
+      return;
+    }
+
+    const { error } = await supabase.auth.resetPasswordForEmail(user.email, {
+      redirectTo: window.location.origin,
+    });
+
+    if (error) {
+      alert("Erro ao enviar email");
+      return;
+    }
+
+    alert("Email de redefinição enviado!");
   }
 
-  const { error } =
-    await supabase.auth.resetPasswordForEmail(
-      user.email,
-      {
-        redirectTo: window.location.origin,
+  async function handleImageUpload(event: React.ChangeEvent<HTMLInputElement>) {
+    try {
+      const file = event.target.files?.[0];
+
+      if (!file) return;
+
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        alert("Usuário não encontrado");
+        return;
       }
-    );
 
-  if (error) {
-    alert("Erro ao enviar email");
-    return;
+      const fileExt = file.name.split(".").pop();
+
+      const fileName = `${user.id}-${Date.now()}.${fileExt}`;
+
+      const filePath = `Avatars/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("Avatars")
+        .upload(filePath, file, {
+          upsert: true,
+        });
+
+      if (uploadError) {
+        console.error(uploadError);
+
+        alert(uploadError.message);
+
+        return;
+      }
+
+      const { data } = supabase.storage.from("Avatars").getPublicUrl(filePath);
+
+      setProfile(prev => ({
+        ...prev,
+        avatar: data.publicUrl,
+      }));
+
+      alert("Imagem enviada!");
+    } catch (error) {
+      console.error(error);
+
+      alert("Erro ao enviar imagem");
+    }
   }
-
-  alert("Email de redefinição enviado!");
-}
 
   return (
     <div className="min-h-screen bg-background text-white">
@@ -180,18 +226,26 @@ export default function Settings() {
                 className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl px-4 py-3"
               />
 
-              <input
-                type="text"
-                placeholder="URL da foto"
-                value={profile.avatar}
-                onChange={e =>
-                  setProfile({
-                    ...profile,
-                    avatar: e.target.value,
-                  })
-                }
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl px-4 py-3"
-              />
+              <div className="space-y-4">
+                <div className="flex items-center gap-4">
+                  <img
+                    src={profile.avatar}
+                    className="w-24 h-24 rounded-full object-cover border-4 border-[#3B82F6]"
+                  />
+
+                  <label className="cursor-pointer bg-[#3B82F6] hover:bg-[#2563EB] transition-all px-5 py-3 rounded-2xl font-semibold text-white">
+                    Escolher Foto
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleImageUpload}
+                    />
+                  </label>
+                </div>
+
+                <p className="text-sm text-zinc-400">PNG, JPG ou WEBP</p>
+              </div>
 
               <textarea
                 rows={4}
