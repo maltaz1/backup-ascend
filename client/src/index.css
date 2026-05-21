@@ -237,6 +237,32 @@
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   }
 
+  .dashboard-charts {
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    gap: 20px;
+  }
+
+  @media (max-width: 768px) {
+    .dashboard-charts {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media (max-width: 500px) {
+    .dashboard-charts {
+      gap: 18px;
+    }
+
+    .dashboard-charts > .fz-card {
+      padding: 16px !important;
+    }
+
+    .dashboard-charts .recharts-wrapper {
+      min-height: 260px;
+    }
+  }
+
   .fz-btn-primary:active {
     background: #1d4ed8;
   }

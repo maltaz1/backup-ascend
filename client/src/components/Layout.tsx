@@ -33,16 +33,16 @@ interface LayoutProps {
 }
 
 const navItems = [
-  { id: 'dashboard' as Tab, label: 'Dashboard', icon: LayoutDashboard },
   { id: 'today' as Tab, label: 'Hoje', icon: Sun },
+  { id: 'habits' as Tab, label: 'Hábitos', icon: Flame },
   { id: 'tasks' as Tab, label: 'Tarefas', icon: CheckSquare },
   { id: 'goals' as Tab, label: 'Metas', icon: Target },
-  { id: 'habits' as Tab, label: 'Hábitos', icon: Flame },
+  { id: 'dashboard' as Tab, label: 'Dashboard', icon: LayoutDashboard },
   { id: 'prayer' as Tab, label: 'Oração', icon: Heart },
+  { id: 'academy' as Tab, label: 'Academia', icon: Dumbbell },
   { id: 'diet' as Tab, label: 'Dieta', icon: Apple },
   { id: 'financial' as Tab, label: 'Financeiro', icon: DollarSign },
   { id: 'calendar' as Tab, label: 'Calendário', icon: Calendar },
-  { id: 'academy' as Tab, label: 'Academia', icon: Dumbbell },
   { id: 'settings' as Tab, label: 'Configurações', icon: Zap },
 ];
 

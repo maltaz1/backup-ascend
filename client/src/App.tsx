@@ -13,6 +13,7 @@ import {
   loadFinancialData,
   loadTasksData,
   loadGoalsData,
+  initRealtimeSync,
   _data,
 } from "./lib/store";
 
@@ -129,6 +130,8 @@ function App() {
               streak: 0,
             });
           }
+
+          await initRealtimeSync();
         }
       } catch (error) {
         console.error("ERRO INIT:", error);

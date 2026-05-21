@@ -13,6 +13,8 @@ import {
   Save,
 } from "lucide-react";
 
+import defaultAvatar from "@/image/user-anon.jpg";
+
 import { motion } from "framer-motion";
 import { supabase } from "@/lib/supabase";
 
@@ -20,7 +22,7 @@ export default function Settings() {
   const [profile, setProfile] = useState({
     name: "",
     bio: "",
-    avatar: "https://api.dicebear.com/7.x/adventurer/svg?seed=FlowZone",
+    avatar: defaultAvatar,
   });
 
   const [notifications, setNotifications] = useState({
@@ -54,7 +56,7 @@ export default function Settings() {
         bio: data.bio || "",
         avatar:
           data.avatar_url ||
-          "https://api.dicebear.com/7.x/adventurer/svg?seed=FlowZone",
+          defaultAvatar,
       });
     }
   }

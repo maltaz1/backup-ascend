@@ -471,14 +471,7 @@ export default function Dashboard() {
       </div>
 
       {/* CHARTS */}
-      <div
-        className="dashboard-charts"
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 340px",
-          gap: 20,
-        }}
-      >
+      <div className="dashboard-charts">
         {/* AREA */}
         <div className="fz-card" style={{ padding: "22px 24px" }}>
           <div
