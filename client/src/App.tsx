@@ -30,6 +30,7 @@ import Academy from "./pages/Academy";
 import Evolution from "./pages/Evolution";
 import Settings from "./pages/Settings";
 import Financial from "./pages/Financial";
+import ResetPassword from "./pages/ResetPassword";
 
 // Login
 import Login from "./pages/Login";
@@ -101,13 +102,13 @@ function App() {
         setUser(data.user);
 
         if (data.user) {
-        await Promise.all([
-          loadGymData(),
-          loadDietData(),
-          loadFinancialData(),
-          loadTasksData(),
-          loadGoalsData()
-        ]);
+          await Promise.all([
+            loadGymData(),
+            loadDietData(),
+            loadFinancialData(),
+            loadTasksData(),
+            loadGoalsData(),
+          ]);
           const { data: profile } = await supabase
             .from("profiles")
             .select("*")
@@ -152,6 +153,12 @@ function App() {
       listener.subscription.unsubscribe();
     };
   }, []);
+
+  const path = window.location.pathname;
+
+  if (path === "/reset-password") {
+    return <ResetPassword />;
+  }
 
   if (loading) {
     return <div style={{ color: "white", padding: 20 }}>Carregando...</div>;

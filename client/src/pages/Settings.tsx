@@ -108,7 +108,7 @@ export default function Settings() {
     }
 
     const { error } = await supabase.auth.resetPasswordForEmail(user.email, {
-      redirectTo: window.location.origin,
+      redirectTo: `${window.location.origin}/reset-password`,
     });
 
     if (error) {
@@ -390,7 +390,7 @@ export default function Settings() {
             <div className="space-y-3">
               <div className="flex justify-between bg-zinc-950 border border-zinc-800 rounded-2xl p-4">
                 <span>Versão do app</span>
-                <span className="text-zinc-400">2.0.0</span>
+                <span className="text-zinc-400">1.0.0</span>
               </div>
 
               <div className="flex justify-between bg-zinc-950 border border-zinc-800 rounded-2xl p-4">
