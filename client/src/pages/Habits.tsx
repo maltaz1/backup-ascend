@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 
 import { addXP } from "@/lib/store";
+import { notifyError } from "@/lib/notifications";
 
 import {
   AreaChart,
@@ -42,6 +43,7 @@ import {
 import { Modal } from "@/components/ui/Modal";
 import { showToast } from "@/components/ui/FlowToast";
 
+import { FREE_LIMITS } from "@/config/planLimits";
 import type { Habit } from "@/lib/store";
 
 import { supabase } from "@/lib/supabase";
@@ -92,6 +94,8 @@ const COLORS = [
   "#EC4899",
   "#06B6D4",
 ];
+
+const WEEK_DAYS = ["D", "S", "T", "Q", "Q", "S", "S"];
 
 // =========================
 // TOOLTIP
@@ -156,13 +160,21 @@ function HabitRow({
 }) {
   const { showXP } = useXPAnimation();
 
+  const [animatingDate, setAnimatingDate] = useState<string | null>(null);
+
   const today = getTodayString();
 
   const progress = getHabitMonthProgress(habit, year, month);
 
   const streak = getHabitStreak(habit);
 
-  const handleToggle = async (day: number, e: React.MouseEvent) => {
+  const getWeekLetter = (day: number) =>
+    WEEK_DAYS[new Date(year, month, day).getDay()];
+
+  const handleToggle = async (
+    day: number,
+    e: React.MouseEvent<HTMLButtonElement>
+  ) => {
     const dateStr = `${year}-${String(month + 1).padStart(
       2,
       "0"
@@ -190,6 +202,8 @@ function HabitRow({
       await addXP(5);
 
       showXP(5, e.clientX, e.clientY);
+      setAnimatingDate(dateStr);
+      window.setTimeout(() => setAnimatingDate(null), 260);
     }
 
     reloadHabits();
@@ -211,29 +225,9 @@ function HabitRow({
   const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
 
   return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 14,
-        minHeight: 48,
-        paddingBottom: 10,
-        paddingTop: 10,
-        borderBottom: "1px solid var(--border)",
-        overflow: "hidden",
-      }}
-    >
-      {/* INFO */}
-
-      <div style={{ width: 130, flexShrink: 0 }}>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 6,
-            marginBottom: 3,
-          }}
-        >
+    <div className="habit-row">
+      <div className="habit-row-info">
+        <div className="habit-row-title">
           <span style={{ fontSize: 16 }}>{habit.emoji}</span>
 
           <span
@@ -245,16 +239,18 @@ function HabitRow({
           >
             {habit.title}
           </span>
+
+          <button
+            onClick={handleDelete}
+            className="habit-row-delete"
+            aria-label={`Remover hábito ${habit.title}`}
+            type="button"
+          >
+            <Trash2 size={14} />
+          </button>
         </div>
 
-        <div
-          style={{
-            display: "flex",
-            gap: 6,
-            alignItems: "center",
-            fontSize: 10,
-          }}
-        >
+        <div className="habit-row-meta">
           <span
             style={{
               color: habit.color,
@@ -270,21 +266,7 @@ function HabitRow({
         </div>
       </div>
 
-      {/* DAYS */}
-
-      <div
-        style={{
-          display: "flex",
-          gap: 3,
-          flex: 1,
-          alignItems: "center",
-          overflowX: "auto",
-          overflowY: "hidden",
-          flexWrap: "nowrap",
-          minWidth: 0,
-          whiteSpace: "nowrap",
-        }}
-      >
+      <div className="habit-row-days">
         {days.map(day => {
           const dateStr = `${year}-${String(month + 1).padStart(
             2,
@@ -295,40 +277,35 @@ function HabitRow({
 
           const isFuture = dateStr > today;
 
+          const isCurrentDay = dateStr === today;
+
+          const dayLabel = `${habit.title} — ${getWeekLetter(day)} ${day}/${String(
+            month + 1
+          ).padStart(2, "0")}`;
+
           return (
             <button
               key={day}
+              type="button"
               onClick={e => !isFuture && handleToggle(day, e)}
-              style={{
-                background: isCompleted ? habit.color : "var(--border)",
-                width: 14,
-                height: 14,
-                minWidth: 14,
-                minHeight: 14,
-                borderRadius: "50%",
-                border: "none",
-                cursor: isFuture ? "default" : "pointer",
-                opacity: isFuture ? 0.2 : 1,
-                flexShrink: 0,
-              }}
-            />
+              className={`habit-day-button${isCurrentDay ? " current-day" : ""}`}
+              aria-label={dayLabel}
+              aria-pressed={isCompleted}
+              title={dayLabel}
+              disabled={isFuture}
+            >
+              <div
+                className={`habit-day-dot${isCompleted ? " completed" : ""}${
+                  animatingDate === dateStr ? " animate" : ""
+                }`}
+                style={{
+                  background: isCompleted ? habit.color : "var(--border)",
+                }}
+              />
+            </button>
           );
         })}
       </div>
-
-      {/* DELETE */}
-
-      <button
-        onClick={handleDelete}
-        style={{
-          background: "transparent",
-          border: "none",
-          color: "var(--muted-foreground)",
-          cursor: "pointer",
-        }}
-      >
-        <Trash2 size={12} />
-      </button>
     </div>
   );
 }
@@ -341,10 +318,14 @@ function NewHabitModal({
   open,
   onClose,
   reloadHabits,
+  isPro,
+  habits,
 }: {
   open: boolean;
   onClose: () => void;
   reloadHabits: () => void;
+  isPro: boolean;
+  habits: any[];
 }) {
   const [title, setTitle] = useState("");
 
@@ -356,6 +337,11 @@ function NewHabitModal({
 
   const handleSubmit = async () => {
     if (!title.trim()) return;
+
+    if (!isPro && habits.length >= FREE_LIMITS.habits) {
+      showToast("Plano grátis permite apenas 3 hábitos", "info");
+      return;
+    }
 
     const {
       data: { user },
@@ -379,7 +365,7 @@ function NewHabitModal({
     if (error) {
       console.log("SUPABASE ERROR:", error);
 
-      alert(JSON.stringify(error));
+      notifyError("Erro ao criar hábito", error.message ?? JSON.stringify(error));
 
       showToast("Erro ao criar hábito", "info", "❌");
 
@@ -509,7 +495,7 @@ function NewHabitModal({
 // MAIN
 // =========================
 
-export default function Habits() {
+export default function Habits({ isPro }: { isPro: boolean }) {
   const [habits, setHabits] = useState<any[]>([]);
 
   const today = new Date();
@@ -564,6 +550,7 @@ export default function Habits() {
   // =========================
 
   const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+  const dayNumbers = Array.from({ length: daysInMonth }, (_, i) => i + 1);
 
   // =========================
   // FILTER
@@ -807,9 +794,9 @@ export default function Habits() {
       {/* HABITS */}
 
       <div
-        className="fz-card"
+        className="fz-card habit-table-card"
         style={{
-          padding: "12px 16px",
+          padding: "0",
           marginBottom: 20,
         }}
       >
@@ -823,16 +810,32 @@ export default function Habits() {
             Nenhum hábito criado
           </div>
         ) : (
-          filteredHabits.map(habit => (
-            <HabitRow
-              key={habit.id}
-              habit={habit}
-              year={viewYear}
-              month={viewMonth}
-              daysInMonth={daysInMonth}
-              reloadHabits={loadHabits}
-            />
-          ))
+          <div className="habit-table-scroll">
+            <div className="habit-table-head">
+              <div className="habit-table-head-info">Hábito</div>
+
+              <div className="habit-table-head-days">
+                {dayNumbers.map(day => (
+                  <div key={day} className="habit-day-header-item">
+                    {day}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="habit-table-body">
+              {filteredHabits.map(habit => (
+                <HabitRow
+                  key={habit.id}
+                  habit={habit}
+                  year={viewYear}
+                  month={viewMonth}
+                  daysInMonth={daysInMonth}
+                  reloadHabits={loadHabits}
+                />
+              ))}
+            </div>
+          </div>
         )}
       </div>
 
@@ -933,6 +936,8 @@ export default function Habits() {
         open={showModal}
         onClose={() => setShowModal(false)}
         reloadHabits={loadHabits}
+        isPro={isPro}
+        habits={habits}
       />
     </div>
   );

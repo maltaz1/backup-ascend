@@ -131,17 +131,13 @@ export default function Academy({ onTabChange }: AcademyProps) {
 
   const handleCreateWorkout = async () => {
     if (!workoutName.trim()) return;
-
     const newWorkout = await addWorkout({
       name: workoutName,
       dayOfWeek: workoutDay,
       exercises: [],
     });
-
     if (!newWorkout) return;
-
     setSelectedWorkoutId(newWorkout.id);
-
     setWorkoutName("");
     setWorkoutDay(0);
     setShowNewWorkoutModal(false);
@@ -149,23 +145,13 @@ export default function Academy({ onTabChange }: AcademyProps) {
 
   const handleAddExercise = () => {
     if (!newExercise.name.trim() || !selectedWorkout) return;
-
-    const newExerciseObj = {
-      ...newExercise,
-      id: generateId(),
-    };
-
+    const newExerciseObj = { ...newExercise, id: generateId() };
     const updatedExercises = [
       ...(selectedWorkout.exercises || []),
       newExerciseObj,
     ];
-
-    updateWorkout(selectedWorkout.id, {
-      exercises: updatedExercises,
-    });
-
+    updateWorkout(selectedWorkout.id, { exercises: updatedExercises });
     setSelectedExerciseForEdit(newExerciseObj.id);
-
     setNewExercise({
       name: "",
       series: 3,
@@ -173,7 +159,6 @@ export default function Academy({ onTabChange }: AcademyProps) {
       repMax: 12,
       restSeconds: 60,
     });
-
     setShowNewExerciseModal(false);
   };
 
@@ -205,17 +190,14 @@ export default function Academy({ onTabChange }: AcademyProps) {
       })),
       startTime: Date.now(),
     });
-
     setShowWorkoutModal(true);
   };
 
   const handleFinishWorkout = async () => {
     if (!workoutInProgress) return;
-
     const durationMinutes = Math.round(
       (Date.now() - workoutInProgress.startTime) / 60000
     );
-
     let totalVolume = 0;
     const exercises = workoutInProgress.exercises.map(ex => {
       const setVolume = ex.sets.reduce(
@@ -229,7 +211,6 @@ export default function Academy({ onTabChange }: AcademyProps) {
         totalVolume: setVolume,
       };
     });
-
     await addWorkoutSession({
       workoutId: workoutInProgress.workoutId,
       workoutName: workoutInProgress.workoutName,
@@ -238,9 +219,7 @@ export default function Academy({ onTabChange }: AcademyProps) {
       exercises,
       totalVolume,
     });
-
     await addXP(XP_PER_WORKOUT);
-
     setWorkoutInProgress(null);
     setShowWorkoutModal(false);
   };
@@ -898,7 +877,7 @@ export default function Academy({ onTabChange }: AcademyProps) {
         )}
       </div>
 
-      {/* Modals */}
+      {/* Modal: Nova Ficha */}
       <Modal
         open={showNewWorkoutModal}
         onClose={() => setShowNewWorkoutModal(false)}
@@ -924,7 +903,6 @@ export default function Academy({ onTabChange }: AcademyProps) {
               className="fz-input"
             />
           </div>
-
           <div>
             <label
               style={{
@@ -948,7 +926,6 @@ export default function Academy({ onTabChange }: AcademyProps) {
               ))}
             </select>
           </div>
-
           <button
             onClick={handleCreateWorkout}
             className="fz-btn-primary"
@@ -959,6 +936,7 @@ export default function Academy({ onTabChange }: AcademyProps) {
         </div>
       </Modal>
 
+      {/* Modal: Novo Exercício */}
       <Modal
         open={showNewExerciseModal}
         onClose={() => setShowNewExerciseModal(false)}
@@ -986,7 +964,6 @@ export default function Academy({ onTabChange }: AcademyProps) {
               className="fz-input"
             />
           </div>
-
           <div
             style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}
           >
@@ -1037,7 +1014,6 @@ export default function Academy({ onTabChange }: AcademyProps) {
               />
             </div>
           </div>
-
           <div
             style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}
           >
@@ -1088,7 +1064,6 @@ export default function Academy({ onTabChange }: AcademyProps) {
               />
             </div>
           </div>
-
           <button
             onClick={handleAddExercise}
             className="fz-btn-primary"
@@ -1099,263 +1074,408 @@ export default function Academy({ onTabChange }: AcademyProps) {
         </div>
       </Modal>
 
-      {/* Workout In Progress Modal */}
-      {/* Workout In Progress Modal */}
+      {/* Modal: Treino em Progresso */}
       <Modal
         open={showWorkoutModal}
         onClose={() => setShowWorkoutModal(false)}
-        title={workoutInProgress?.workoutName || "Treino"}
+        title=""
       >
         {workoutInProgress && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-
-            {/* Timer badge */}
-            <div style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              padding: "8px 14px",
-              background: "rgba(168,85,247,0.08)",
-              border: "1px solid rgba(168,85,247,0.18)",
-              borderRadius: 10,
-              width: "fit-content",
-            }}>
-              <div style={{
-                width: 7, height: 7, borderRadius: "50%",
-                background: "#A855F7",
-                boxShadow: "0 0 6px #A855F7",
-                animation: "pulse 2s infinite",
-              }}/>
-              <span style={{ fontSize: 12, color: "#A855F7", fontWeight: 600 }}>
-                Em progresso
-              </span>
-              <span style={{ fontSize: 12, color: "var(--muted-foreground)", marginLeft: 4 }}>
-                · {Math.round((Date.now() - workoutInProgress.startTime) / 60000)} min
-              </span>
-            </div>
-
-            {/* Exercises list */}
-            <div style={{
+          <div
+            style={{
+              height: "100%",
+              maxHeight: "100dvh",
               display: "flex",
               flexDirection: "column",
-              gap: 16,
-              maxHeight: 480,
-              overflowY: "auto",
-              paddingRight: 2,
-            }}>
+              overflow: "hidden",
+              margin: "-24px",
+              background:
+                "linear-gradient(180deg, rgba(10,10,14,1) 0%, rgba(17,17,25,1) 100%)",
+            }}
+          >
+            {/* HEADER FIXO */}
+            <div
+              style={{
+                position: "sticky",
+                top: 0,
+                zIndex: 50,
+                padding: "18px 18px 14px",
+                borderBottom: "1px solid rgba(255,255,255,0.06)",
+                backdropFilter: "blur(20px)",
+                background: "rgba(10,10,14,0.92)",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "start",
+                  gap: 12,
+                }}
+              >
+                <div>
+                  <div
+                    style={{
+                      fontSize: 22,
+                      fontWeight: 800,
+                      color: "white",
+                      fontFamily: "Space Grotesk",
+                      marginBottom: 6,
+                    }}
+                  >
+                    {workoutInProgress.workoutName}
+                  </div>
+
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      flexWrap: "wrap",
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 6,
+                        background: "rgba(168,85,247,0.12)",
+                        border: "1px solid rgba(168,85,247,0.22)",
+                        padding: "6px 10px",
+                        borderRadius: 999,
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: 7,
+                          height: 7,
+                          borderRadius: "50%",
+                          background: "#A855F7",
+                          boxShadow: "0 0 10px #A855F7",
+                        }}
+                      />
+                      <span
+                        style={{
+                          fontSize: 11,
+                          color: "#A855F7",
+                          fontWeight: 700,
+                        }}
+                      >
+                        EM TREINO
+                      </span>
+                    </div>
+
+                    <div
+                      style={{
+                        fontSize: 12,
+                        color: "var(--muted-foreground)",
+                        fontWeight: 600,
+                      }}
+                    >
+                      {Math.round(
+                        (Date.now() - workoutInProgress.startTime) / 60000
+                      )}{" "}
+                      min
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => setShowWorkoutModal(false)}
+                  style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: 10,
+                    border: "1px solid rgba(255,255,255,0.08)",
+                    background: "rgba(255,255,255,0.04)",
+                    color: "white",
+                    cursor: "pointer",
+                    fontSize: 16,
+                  }}
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+
+            {/* SCROLL */}
+            <div
+              style={{
+                flex: 1,
+                overflowY: "auto",
+                minHeight: 0,
+                paddingBottom: 120,
+                overflowX: "hidden",
+                padding: "18px",
+                display: "flex",
+                flexDirection: "column",
+                gap: 18,
+                WebkitOverflowScrolling: "touch",
+              }}
+            >
               {workoutInProgress.exercises.map((exercise, exIdx) => {
-                const lastPerformance = getLastExercisePerformance(exercise.name);
+                const lastPerformance = getLastExercisePerformance(
+                  exercise.name
+                );
+
                 const totalVolume = exercise.sets.reduce(
-                  (sum, set) => sum + set.weight * set.reps, 0
+                  (sum, set) => sum + set.weight * set.reps,
+                  0
                 );
 
                 return (
-                  <div key={exercise.id} style={{
-                    background: "rgba(255,255,255,0.03)",
-                    border: "1px solid rgba(255,255,255,0.07)",
-                    borderRadius: 14,
-                    overflow: "hidden",
-                  }}>
-                    {/* Exercise header */}
-                    <div style={{
-                      padding: "14px 16px",
-                      borderBottom: "1px solid rgba(255,255,255,0.06)",
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                    }}>
-                      <div>
-                        <div style={{ fontSize: 14, fontWeight: 700, color: "var(--foreground)", marginBottom: 2 }}>
-                          {exercise.name}
-                        </div>
-                        <div style={{ fontSize: 11, color: "var(--muted-foreground)" }}>
-                          Volume: <span style={{ color: "#A855F7", fontWeight: 600 }}>{(totalVolume || 0).toFixed(0)} kg</span>
-                        </div>
-                      </div>
+                  <div
+                    key={exercise.id}
+                    style={{
+                      borderRadius: 20,
+                      overflow: "visible",
+                      background:
+                        "linear-gradient(180deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.02) 100%)",
+                      border: "1px solid rgba(255,255,255,0.06)",
+                      backdropFilter: "blur(10px)",
+                    }}
+                  >
+                    {/* HEADER EXERCÍCIO */}
+                    <div
+                      style={{
+                        padding: "18px",
+                        borderBottom: "1px solid rgba(255,255,255,0.05)",
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "start",
+                          gap: 12,
+                        }}
+                      >
+                        <div>
+                          <div
+                            style={{
+                              fontSize: 18,
+                              fontWeight: 700,
+                              color: "white",
+                              marginBottom: 4,
+                            }}
+                          >
+                            {exercise.name}
+                          </div>
 
-                      {/* Last session pill */}
-                      {(lastPerformance?.sets?.length ?? 0) > 0 && (
-                        <div style={{
-                          padding: "4px 10px",
-                          background: "rgba(168,85,247,0.1)",
-                          border: "1px solid rgba(168,85,247,0.2)",
-                          borderRadius: 20,
-                          fontSize: 10,
-                          color: "#A855F7",
-                          fontWeight: 600,
-                          whiteSpace: "nowrap",
-                        }}>
-                          último: {lastPerformance?.sets?.[0]?.weight}kg
+                          <div
+                            style={{
+                              display: "flex",
+                              gap: 12,
+                              flexWrap: "wrap",
+                            }}
+                          >
+                            <div
+                              style={{
+                                fontSize: 12,
+                                color: "var(--muted-foreground)",
+                              }}
+                            >
+                              Volume:
+                              <span
+                                style={{
+                                  color: "#A855F7",
+                                  marginLeft: 4,
+                                  fontWeight: 700,
+                                }}
+                              >
+                                {totalVolume.toFixed(0)}kg
+                              </span>
+                            </div>
+
+                            <div
+                              style={{
+                                fontSize: 12,
+                                color: "var(--muted-foreground)",
+                              }}
+                            >
+                              Séries:
+                              <span
+                                style={{
+                                  color: "#3B82F6",
+                                  marginLeft: 4,
+                                  fontWeight: 700,
+                                }}
+                              >
+                                {exercise.sets.length}
+                              </span>
+                            </div>
+                          </div>
                         </div>
-                      )}
+
+                        {(lastPerformance?.sets?.length ?? 0) > 0 && (
+                          <div
+                            style={{
+                              padding: "6px 10px",
+                              borderRadius: 999,
+                              background: "rgba(168,85,247,0.12)",
+                              border: "1px solid rgba(168,85,247,0.2)",
+                              fontSize: 11,
+                              fontWeight: 700,
+                              color: "#A855F7",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            Último: {lastPerformance?.sets?.[0]?.weight}kg
+                          </div>
+                        )}
+                      </div>
                     </div>
 
-                    {/* Last performance reference (collapsed, subtle) */}
+                    {/* HISTÓRICO */}
                     {(lastPerformance?.sets?.length ?? 0) > 0 && (
-                      <div style={{
-                        padding: "10px 16px",
-                        borderBottom: "1px solid rgba(255,255,255,0.05)",
-                        display: "flex",
-                        gap: 6,
-                        overflowX: "auto",
-                      }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          gap: 8,
+                          overflowX: "auto",
+                          padding: "12px 18px",
+                          borderBottom: "1px solid rgba(255,255,255,0.04)",
+                        }}
+                      >
                         {lastPerformance?.sets?.map((set, idx) => (
-                          <div key={idx} style={{
-                            padding: "4px 10px",
-                            background: "rgba(168,85,247,0.06)",
-                            border: "1px solid rgba(168,85,247,0.14)",
-                            borderRadius: 8,
-                            fontSize: 11,
-                            color: "var(--muted-foreground)",
-                            whiteSpace: "nowrap",
-                            flexShrink: 0,
-                          }}>
-                            <span style={{ color: "var(--foreground)", fontWeight: 600 }}>
-                              {set.weight}kg
-                            </span>
-                            {" × "}
-                            {set.reps}
+                          <div
+                            key={idx}
+                            style={{
+                              flexShrink: 0,
+                              padding: "8px 12px",
+                              borderRadius: 12,
+                              background: "rgba(255,255,255,0.04)",
+                              border: "1px solid rgba(255,255,255,0.05)",
+                              fontSize: 12,
+                              color: "white",
+                              fontWeight: 600,
+                            }}
+                          >
+                            {set.weight}kg × {set.reps}
                           </div>
                         ))}
                       </div>
                     )}
 
-                    {/* Sets */}
+                    {/* SÉRIES */}
                     <div
                       style={{
+                        padding: 16,
                         display: "flex",
                         flexDirection: "column",
-                        gap: 8,
-                        marginBottom: 12,
+                        gap: 12,
+                        overflow: "visible",
+                        height: "auto",
                       }}
                     >
-                      {exercise.sets.map((set, setIdx) => {
-                        const typeConfig: Record<
-                          string,
-                          { color: string; label: string; icon: string }
-                        > = {
-                          warmup: {
-                            color: "#A855F7",
-                            label: "Aquecimento",
-                            icon: "🔥",
-                          },
-                          normal: {
-                            color: "#3B82F6",
-                            label: "Normal",
-                            icon: "💪",
-                          },
-                          failed: {
-                            color: "#EF4444",
-                            label: "Falhada",
-                            icon: "⚠️",
-                          },
-                          drop: { color: "#06B6D4", label: "Drop", icon: "⬇️" },
-                        };
-                        const config = typeConfig[set.type];
-                        return (
+                      {exercise.sets.map((set, setIdx) => (
+                        <div
+                          key={setIdx}
+                          style={{
+                            borderRadius: 16,
+                            padding: 14,
+                            background: "rgba(255,255,255,0.03)",
+                            border: "1px solid rgba(255,255,255,0.05)",
+                            boxSizing: "border-box", // ← ADICIONADO
+                            width: "100%", // ← ADICIONADO
+                            overflow: "hidden", // ← ADICIONADO
+                          }}
+                        >
+                          {/* TOP */}
                           <div
-                            key={setIdx}
                             style={{
                               display: "flex",
                               alignItems: "center",
-                              gap: 12,
-                              background: `${config.color}08`,
-                              border: `1.5px solid ${config.color}40`,
-                              padding: "14px 12px",
-                              borderRadius: 10,
-                              transition: "all 0.2s ease",
+                              justifyContent: "space-between",
+                              marginBottom: 12,
                             }}
                           >
-                            {/* Número da série */}
                             <div
                               style={{
+                                width: 36,
+                                height: 36,
+                                borderRadius: 12,
+                                background:
+                                  "linear-gradient(135deg,#3B82F6,#2563EB)",
                                 display: "flex",
                                 alignItems: "center",
                                 justifyContent: "center",
-                                width: 36,
-                                height: 36,
-                                background: config.color,
-                                borderRadius: 8,
-                                fontSize: 14,
-                                fontWeight: 700,
+                                fontWeight: 800,
                                 color: "white",
-                                minWidth: 36,
-                                boxShadow: `0 2px 8px ${config.color}40`,
+                                fontSize: 14,
+                                flexShrink: 0, // ← ADICIONADO
                               }}
                             >
                               {setIdx + 1}
                             </div>
 
-                            {/* Tipo de série */}
-                            <div
+                            <button
+                              onClick={() => handleDeleteSet(exIdx, setIdx)}
                               style={{
+                                width: 34,
+                                height: 34,
+                                borderRadius: 10,
+                                border: "1px solid rgba(239,68,68,0.2)",
+                                background: "rgba(239,68,68,0.08)",
+                                color: "#EF4444",
+                                cursor: "pointer",
                                 display: "flex",
-                                flexDirection: "column",
-                                gap: 2,
-                                minWidth: 90,
+                                alignItems: "center",
+                                justifyContent: "center",
+                                flexShrink: 0, // ← ADICIONADO
                               }}
                             >
-                              <select
-                                value={set.type}
-                                onChange={e =>
-                                  handleUpdateSet(
-                                    exIdx,
-                                    setIdx,
-                                    "type",
-                                    e.target.value
-                                  )
-                                }
-                                title={`W = Aquecimento | 1 = Normal | F = Falhada | D = Drop`}
-                                style={{
-                                  background: config.color,
-                                  color: "white",
-                                  border: "none",
-                                  borderRadius: 6,
-                                  padding: "6px 8px",
-                                  fontSize: 11,
-                                  fontWeight: 600,
-                                  cursor: "pointer",
-                                  width: "100%",
-                                }}
-                              >
-                                <option value="warmup">🔥 Aquecimento</option>
-                                <option value="normal">💪 Normal</option>
-                                <option value="failed">⚠️ Falhada</option>
-                                <option value="drop">⬇️ Drop</option>
-                              </select>
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+
+                          {/* TIPO — agora ocupa linha inteira */}
+                          <select
+                            value={set.type}
+                            onChange={e =>
+                              handleUpdateSet(
+                                exIdx,
+                                setIdx,
+                                "type",
+                                e.target.value
+                              )
+                            }
+                            className="fz-input"
+                            style={{
+                              marginBottom: 12,
+                              fontWeight: 700,
+                              width: "100%", // ← GARANTE LINHA INTEIRA
+                              boxSizing: "border-box",
+                            }}
+                          >
+                            <option value="warmup">🔥 Aquecimento</option>
+                            <option value="normal">💪 Normal</option>
+                            <option value="failed">⚠️ Falhada</option>
+                            <option value="drop">⬇️ Drop</option>
+                          </select>
+
+                          {/* INPUTS — contidos dentro do card */}
+                          <div
+                            style={{
+                              display: "grid",
+                              gridTemplateColumns: "1fr 1fr",
+                              gap: 12,
+                              width: "100%", // ← ADICIONADO
+                              boxSizing: "border-box",
+                            }}
+                          >
+                            <div>
                               <div
                                 style={{
-                                  fontSize: 9,
+                                  fontSize: 10,
+                                  marginBottom: 6,
                                   color: "var(--muted-foreground)",
-                                  textAlign: "center",
-                                  fontWeight: 500,
-                                }}
-                              >
-                                {config.label}
-                              </div>
-                            </div>
-
-                            {/* Peso */}
-                            <div
-                              style={{
-                                display: "flex",
-                                flexDirection: "column",
-                                gap: 4,
-                                flex: 1,
-                                minWidth: 70,
-                              }}
-                            >
-                              <label
-                                style={{
-                                  fontSize: 9,
-                                  color: "var(--muted-foreground)",
-                                  fontWeight: 600,
+                                  fontWeight: 700,
                                   textTransform: "uppercase",
-                                  letterSpacing: "0.5px",
                                 }}
                               >
                                 Peso (kg)
-                              </label>
+                              </div>
                               <input
                                 type="number"
                                 value={set.weight}
@@ -1367,39 +1487,30 @@ export default function Academy({ onTabChange }: AcademyProps) {
                                     parseFloat(e.target.value) || 0
                                   )
                                 }
-                                placeholder="0"
                                 className="fz-input"
                                 style={{
-                                  fontSize: 13,
-                                  padding: "8px",
-                                  fontWeight: 600,
+                                  height: 52,
+                                  fontSize: 20,
+                                  fontWeight: 800,
                                   textAlign: "center",
+                                  width: "100%", // ← ADICIONADO
+                                  boxSizing: "border-box",
                                 }}
-                                step="0.5"
                               />
                             </div>
 
-                            {/* Reps */}
-                            <div
-                              style={{
-                                display: "flex",
-                                flexDirection: "column",
-                                gap: 4,
-                                flex: 1,
-                                minWidth: 70,
-                              }}
-                            >
-                              <label
+                            <div>
+                              <div
                                 style={{
-                                  fontSize: 9,
+                                  fontSize: 10,
+                                  marginBottom: 6,
                                   color: "var(--muted-foreground)",
-                                  fontWeight: 600,
+                                  fontWeight: 700,
                                   textTransform: "uppercase",
-                                  letterSpacing: "0.5px",
                                 }}
                               >
-                                Reps
-                              </label>
+                                Repetições
+                              </div>
                               <input
                                 type="number"
                                 value={set.reps}
@@ -1411,95 +1522,90 @@ export default function Academy({ onTabChange }: AcademyProps) {
                                     parseInt(e.target.value) || 0
                                   )
                                 }
-                                placeholder="0"
                                 className="fz-input"
                                 style={{
-                                  fontSize: 13,
-                                  padding: "8px",
-                                  fontWeight: 600,
+                                  height: 52,
+                                  fontSize: 20,
+                                  fontWeight: 800,
                                   textAlign: "center",
+                                  width: "100%", // ← ADICIONADO
+                                  boxSizing: "border-box",
                                 }}
                               />
                             </div>
-
-                            {/* Deletar */}
-                            <button
-                              onClick={() => handleDeleteSet(exIdx, setIdx)}
-                              style={{
-                                background: "transparent",
-                                border: "none",
-                                cursor: "pointer",
-                                padding: "6px",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                opacity: 0.6,
-                                transition: "opacity 0.2s",
-                              }}
-                              onMouseEnter={e =>
-                                (e.currentTarget.style.opacity = "1")
-                              }
-                              onMouseLeave={e =>
-                                (e.currentTarget.style.opacity = "0.6")
-                              }
-                            >
-                              <Trash2 size={16} color="#EF4444" />
-                            </button>
                           </div>
-                        );
-                      })}
-                    </div>
+                        </div>
+                      ))}
 
-                    <button
-                      onClick={() => handleAddSet(exIdx)}
-                      className="fz-btn-ghost"
-                      style={{
-                        width: "100%",
-                        padding: "8px",
-                        fontSize: 12,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        gap: 4,
-                      }}
-                    >
-                      <Plus size={12} />
-                      Adicionar Série
-                    </button>
+                      {/* ADD SET */}
+                      <button
+                        onClick={() => handleAddSet(exIdx)}
+                        style={{
+                          height: 48,
+                          borderRadius: 14,
+                          border: "1px dashed rgba(255,255,255,0.14)",
+                          background: "rgba(255,255,255,0.03)",
+                          color: "white",
+                          fontWeight: 700,
+                          cursor: "pointer",
+                          marginTop: 4,
+                          width: "100%",
+                        }}
+                      >
+                        + Adicionar Série
+                      </button>
+                    </div>
                   </div>
                 );
               })}
+            </div>
+
+            {/* FOOTER FIXO */}
+            <div
+              style={{
+                position: "sticky",
+                bottom: 0,
+                zIndex: 40,
+                padding: 18,
+                borderTop: "1px solid rgba(255,255,255,0.06)",
+                background: "rgba(10,10,14,0.95)",
+                backdropFilter: "blur(20px)",
+              }}
+            >
+              <button
+                onClick={handleFinishWorkout}
+                style={{
+                  width: "100%",
+                  height: 58,
+                  borderRadius: 18,
+                  border: "none",
+                  background: "linear-gradient(135deg,#3B82F6,#2563EB)",
+                  color: "white",
+                  fontSize: 18,
+                  fontWeight: 800,
+                  cursor: "pointer",
+                  boxShadow: "0 10px 30px rgba(59,130,246,0.3)",
+                }}
+              >
+                ✓ Finalizar Treino (+{XP_PER_WORKOUT} XP)
+              </button>
             </div>
           </div>
         )}
       </Modal>
 
-      {/* Media queries para responsividade */}
+      {/* Media queries */}
       <style>{`
         @media (max-width: 1024px) {
-          .academy-main-grid {
-            grid-template-columns: 1fr !important;
-          }
+          .academy-main-grid { grid-template-columns: 1fr !important; }
         }
-
         @media (max-width: 768px) {
-          .academy-summary {
-            grid-template-columns: 1fr !important;
-          }
-
-          .academy-main-grid {
-            grid-template-columns: 1fr !important;
-          }
+          .academy-summary { grid-template-columns: 1fr !important; }
+          .academy-main-grid { grid-template-columns: 1fr !important; }
         }
-
         @media (max-width: 480px) {
-          .academy-summary {
-            gap: 12px !important;
-          }
-
-          .academy-main-grid {
-            gap: 16px !important;
-          }
+          .academy-summary { gap: 12px !important; }
+          .academy-main-grid { gap: 16px !important; }
         }
       `}</style>
     </div>
