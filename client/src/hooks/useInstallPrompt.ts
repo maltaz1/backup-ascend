@@ -13,7 +13,11 @@ export function useInstallPrompt() {
 
   useEffect(() => {
     const checkIfInstalled = () => {
-      if (window.matchMedia("(display-mode: standalone)").matches) {
+      const isStandalone =
+        window.matchMedia("(display-mode: standalone)").matches ||
+        (window.navigator as any).standalone === true;
+
+      if (isStandalone) {
         setIsInstalled(true);
       }
     };

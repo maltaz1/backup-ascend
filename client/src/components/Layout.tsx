@@ -1,6 +1,6 @@
 // Sidebar vertical com ícones + labels, conteúdo principal com padding generoso
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   LayoutDashboard,
   Target,
@@ -79,6 +79,8 @@ export function Layout({
   const { isInstallable, isInstalled, handleInstall } = useInstallPrompt();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const navItemRefs = useRef<Record<Tab, HTMLButtonElement | null>>({} as Record<Tab, HTMLButtonElement | null>);
+
   const [navOrder, setNavOrder] = useState<Tab[]>(() => {
     const saved = localStorage.getItem("navOrder");
     const allIds = navItems.map(item => item.id);
@@ -102,6 +104,14 @@ export function Layout({
   React.useEffect(() => {
     setMobileOpen(false);
   }, [activeTab]);
+
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const activeButton = navItemRefs.current[activeTab];
+    if (activeButton) {
+      activeButton.scrollIntoView({ block: "nearest", inline: "start" });
+    }
+  }, [mobileOpen, activeTab]);
 
   return (
     <div
@@ -627,6 +637,9 @@ export function Layout({
               const isLocked = !isPro && !FREE_TABS.includes(item.id);
               return (
                 <button
+                  ref={el => {
+                    navItemRefs.current[item.id] = el;
+                  }}
                   key={item.id}
                   onClick={() => {
                     if (isLocked) {
