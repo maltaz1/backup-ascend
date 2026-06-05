@@ -17,6 +17,7 @@ export function usePWA() {
       navigator.serviceWorker
         .register('/sw.js', { scope: '/' })
         .then((registration) => {
+          console.log('service worker registrado');
           console.log('Service Worker registered:', registration);
         })
         .catch((error) => {
@@ -27,6 +28,7 @@ export function usePWA() {
     // Listen for install prompt
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
+      console.log('beforeinstallprompt recebido');
       setInstallPrompt(e as PWAInstallPrompt);
       setIsInstallable(true);
     };
@@ -59,8 +61,8 @@ export function usePWA() {
     };
   }, []);
 
-  const installApp = async () => {
-    if (!installPrompt) return;
+  const installApp = async (): Promise<boolean> => {
+    if (!installPrompt) return false;
 
     installPrompt.prompt();
     const { outcome } = await installPrompt.userChoice;
@@ -69,7 +71,11 @@ export function usePWA() {
     if (outcome === 'accepted') {
       setIsInstallable(false);
       setInstallPrompt(null);
+      setIsInstalled(true);
+      return true;
     }
+
+    return false;
   };
 
   const requestBackgroundSync = async () => {

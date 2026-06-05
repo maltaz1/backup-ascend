@@ -11,22 +11,24 @@ import {
   QrCode,
 } from "lucide-react";
 import { showToast } from "@/components/ui/FlowToast";
-import { useInstallPrompt } from "@/hooks/useInstallPrompt";
+import { usePWA } from "@/hooks/usePWA";
 
 const APP_URL = "https://ascend-lac-zeta.vercel.app";
 
 type Platform = "android" | "ios" | "desktop" | "unknown";
 
 export default function DownloadApp() {
-  const { isInstallable, isInstalled, handleInstall } = useInstallPrompt();
+  const { isInstallable, isInstalled, installApp } = usePWA();
   const [platform, setPlatform] = useState<Platform>("unknown");
   const [copied, setCopied] = useState(false);
-  const [showInstallPrompt, setShowInstallPrompt] = useState(true);
 
   useEffect(() => {
     detectPlatform();
-    if (isInstalled) setShowInstallPrompt(false);
-  }, [isInstalled]);
+  }, []);
+
+  useEffect(() => {
+    console.log("PWA STATUS", { isInstallable, isInstalled, platform });
+  }, [isInstallable, isInstalled, platform]);
 
   const detectPlatform = () => {
     const ua = navigator.userAgent;
@@ -40,6 +42,22 @@ export default function DownloadApp() {
     setCopied(true);
     showToast("Link copiado! 📋", "success");
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const shareLink = async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: "Ascend",
+          text: "Instale o Ascend e abra direto da tela inicial.",
+          url: APP_URL,
+        });
+      } catch (error) {
+        copyToClipboard();
+      }
+    } else {
+      copyToClipboard();
+    }
   };
 
   const generateQRCodeUrl = () =>
@@ -159,6 +177,119 @@ export default function DownloadApp() {
           transition: background 0.2s;
         }
         .step-row:hover { background: rgba(255,255,255,0.04); }
+        .hero-card {
+          background: linear-gradient(135deg, #5B21B6 0%, #7C3AED 55%, #A855F7 100%);
+          border-radius: 28px;
+          padding: 28px;
+          box-shadow: 0 26px 80px rgba(92, 33, 132, 0.18);
+          overflow: hidden;
+          position: relative;
+          margin-bottom: 24px;
+          color: white;
+        }
+        .hero-card::before {
+          content: "";
+          position: absolute;
+          inset: 0;
+          background: radial-gradient(circle at top right, rgba(255,255,255,0.15), transparent 45%);
+          pointer-events: none;
+        }
+        .hero-card-inner {
+          position: relative;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 20px;
+          flex-wrap: wrap;
+        }
+        .hero-card__icon {
+          width: 88px;
+          height: 88px;
+          border-radius: 28px;
+          background: rgba(255,255,255,0.12);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          box-shadow: inset 0 0 0 1px rgba(255,255,255,0.12);
+          flex-shrink: 0;
+        }
+        .hero-card__title {
+          font-size: 28px;
+          font-weight: 800;
+          margin: 0 0 8px;
+          line-height: 1.05;
+        }
+        .hero-card__subtitle {
+          margin: 0;
+          color: rgba(255,255,255,0.82);
+          font-size: 15px;
+          max-width: 520px;
+        }
+        .hero-actions {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          flex-wrap: wrap;
+          margin-top: 18px;
+        }
+        .hero-btn {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 10px;
+          padding: 14px 22px;
+          border-radius: 16px;
+          border: 1px solid rgba(255,255,255,0.18);
+          font-weight: 700;
+          font-size: 14px;
+          cursor: pointer;
+          transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+          min-width: 160px;
+        }
+        .hero-btn:hover {
+          transform: translateY(-1px);
+          box-shadow: 0 14px 40px rgba(0,0,0,0.12);
+        }
+        .hero-btn--primary {
+          background: white;
+          color: #5B21B6;
+          border-color: transparent;
+        }
+        .hero-btn--secondary {
+          background: rgba(255,255,255,0.12);
+          color: white;
+        }
+        .hero-btn--success {
+          background: rgba(34,197,94,0.18);
+          color: #D9F99D;
+          border-color: rgba(34,197,94,0.3);
+        }
+        .hero-status {
+          display: inline-flex;
+          align-items: center;
+          gap: 10px;
+          margin-top: 12px;
+          padding: 12px 16px;
+          border-radius: 16px;
+          background: rgba(34,197,94,0.12);
+          border: 1px solid rgba(34,197,94,0.22);
+          color: #D9F99D;
+          font-size: 14px;
+        }
+        .hero-card__note {
+          margin-top: 10px;
+          color: rgba(255,255,255,0.7);
+          font-size: 13px;
+        }
+        .desktop-qr-actions {
+          display: flex;
+          gap: 12px;
+          flex-wrap: wrap;
+          margin-top: 18px;
+        }
+        .desktop-qr-actions button {
+          min-width: 160px;
+        }
         .copy-field {
           display: flex;
           align-items: center;
@@ -174,6 +305,9 @@ export default function DownloadApp() {
           .header-actions { width: 100%; }
           .header-actions button { flex: 1; }
           .benefits-row { flex-wrap: wrap; }
+          .hero-card { padding: 22px; }
+          .hero-card__title { font-size: 24px; }
+          .hero-card__icon { width: 72px; height: 72px; }
         }
       `}</style>
 
@@ -214,34 +348,69 @@ export default function DownloadApp() {
         </div>
 
         <div className="header-actions" style={{ display: "flex", gap: 10 }}>
-          <button
-            className="dl-primary-btn"
-            disabled={isInstalled}
-            onClick={async () => {
-              if (isInstalled) return;
-              if (isInstallable) {
-                const ok = await handleInstall();
-                if (ok) showToast("Aplicativo instalado com sucesso! 🎉", "success");
-              } else {
-                copyToClipboard();
-              }
-            }}
-          >
-            {isInstalled ? (
-              <><Check size={16} /> Instalado</>
-            ) : isInstallable ? (
-              <><ArrowDown size={16} /> Instalar Agora</>
-            ) : (
-              <><Copy size={16} /> Copiar Link</>
-            )}
-          </button>
-
-          {!isInstallable && !isInstalled && (
-            <button className="dl-ghost-btn" onClick={copyToClipboard}>
+          {!isInstalled && (
+            <button className="dl-ghost-btn" onClick={shareLink}>
               <Share2 size={15} />
               Compartilhar
             </button>
           )}
+        </div>
+      </div>
+
+      <div className="hero-card">
+        <div className="hero-card-inner">
+          <div>
+            <div className="hero-card__icon">
+              <Download size={34} />
+            </div>
+            <div style={{ marginTop: 18 }}>
+              <p className="hero-card__note">Instale o Ascend</p>
+              <h2 className="hero-card__title">Tenha acesso instantâneo diretamente da tela inicial.</h2>
+              <p className="hero-card__subtitle">Use o Ascend como um aplicativo nativo no seu dispositivo.</p>
+              {!isInstallable && !isInstalled && (
+                <p className="hero-card__note" style={{ marginTop: 14, opacity: 0.9 }}>
+                  Seu navegador ainda não disponibilizou a instalação automática.
+                </p>
+              )}
+            </div>
+          </div>
+
+          <div className="hero-actions">
+            {isInstalled ? (
+              <>
+                <button
+                  className="hero-btn hero-btn--success"
+                  onClick={() => {
+                    window.location.href = "/";
+                  }}
+                >
+                  🚀 Abrir Aplicativo
+                </button>
+                <div className="hero-status">
+                  ✓ Ascend instalado
+                </div>
+              </>
+            ) : isInstallable ? (
+              <button
+                className="hero-btn hero-btn--primary"
+                onClick={async () => {
+                  const ok = await installApp();
+                  if (ok) showToast("Ascend instalado com sucesso! 🎉", "success");
+                }}
+              >
+                📲 Instalar Agora
+              </button>
+            ) : (
+              <div style={{ display: "flex", gap: 12, flexWrap: "wrap", justifyContent: "flex-start" }}>
+                <button className="hero-btn hero-btn--secondary" onClick={copyToClipboard}>
+                  📋 Copiar Link
+                </button>
+                <button className="hero-btn hero-btn--secondary" onClick={shareLink}>
+                  📱 Compartilhar
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -251,71 +420,48 @@ export default function DownloadApp() {
           style={{
             display: "flex",
             alignItems: "center",
+            justifyContent: "space-between",
             gap: 12,
             padding: "16px 20px",
-            borderRadius: 16,
-            background: "rgba(52,211,153,0.08)",
-            border: "1px solid rgba(52,211,153,0.25)",
+            borderRadius: 20,
+            background: "rgba(34,197,94,0.12)",
+            border: "1px solid rgba(34,197,94,0.22)",
             marginBottom: 20,
+            backdropFilter: "blur(12px)",
           }}
         >
-          <div
-            style={{
-              width: 36,
-              height: 36,
-              borderRadius: "50%",
-              background: "rgba(52,211,153,0.15)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              flexShrink: 0,
-            }}
-          >
-            <Check size={18} color="#34D399" />
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <div
+              style={{
+                width: 42,
+                height: 42,
+                borderRadius: "50%",
+                background: "rgba(34,197,94,0.18)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0,
+              }}
+            >
+              <Check size={20} color="#34D399" />
+            </div>
+            <div>
+              <p style={{ fontWeight: 700, color: "#ECFDF5", margin: 0, fontSize: 15 }}>
+                ✓ Ascend instalado com sucesso
+              </p>
+              <p style={{ fontSize: 13, color: "rgba(255,255,255,0.65)", margin: "4px 0 0" }}>
+                Você já possui o aplicativo instalado e pode acessá-lo pela tela inicial.
+              </p>
+            </div>
           </div>
-          <div>
-            <p style={{ fontWeight: 600, color: "#34D399", margin: 0, fontSize: 14 }}>
-              Ascend instalado com sucesso!
-            </p>
-            <p style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", margin: "2px 0 0" }}>
-              Acesse diretamente pela sua tela inicial
-            </p>
-          </div>
-        </div>
-      )}
-
-      {/* ── INSTALL PROMPT CARD ── */}
-      {showInstallPrompt && isInstallable && !isInstalled && (
-        <div
-          className="dl-card"
-          style={{
-            padding: 28,
-            marginBottom: 20,
-            border: "1px solid rgba(124,58,237,0.35)",
-            background: "rgba(124,58,237,0.07)",
-            textAlign: "center",
-            position: "relative",
-            overflow: "hidden",
-          }}
-        >
-
-          <div style={{ fontSize: 44, marginBottom: 12 }}>📲</div>
-          <h2 style={{ fontSize: 18, fontWeight: 700, margin: "0 0 6px", letterSpacing: "-0.02em" }}>
-            Instale o Ascend
-          </h2>
-          <p style={{ fontSize: 13, color: "rgba(255,255,255,0.45)", marginBottom: 20 }}>
-            Como um aplicativo nativo no seu dispositivo — sem usar espaço na loja.
-          </p>
           <button
-            className="dl-primary-btn"
-            style={{ width: "100%", fontSize: 15, padding: "15px 20px" }}
-            onClick={async () => {
-              const ok = await handleInstall();
-              if (ok) showToast("Aplicativo instalado com sucesso! 🎉", "success");
+            className="hero-btn hero-btn--success"
+            onClick={() => {
+              window.location.href = "/";
             }}
+            style={{ marginLeft: "auto" }}
           >
-            <ArrowDown size={18} />
-            Instalar Agora
+            Abrir Aplicativo
           </button>
         </div>
       )}
@@ -354,17 +500,44 @@ export default function DownloadApp() {
               ))}
             </div>
           ) : (
-            <div
-              style={{
-                padding: 16,
-                borderRadius: 12,
-                background: "rgba(245,158,11,0.08)",
-                border: "1px solid rgba(245,158,11,0.2)",
-                fontSize: 13,
-                color: "rgba(255,255,255,0.5)",
-              }}
-            >
-              Instalação automática não disponível no momento. Use o link abaixo para instalar manualmente.
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {[
+                { n: "01", title: "Abra no Chrome", sub: "Use o navegador Chrome no Android." },
+                { n: "02", title: "Toque em ⋮", sub: "Abra o menu do navegador no canto superior direito." },
+                { n: "03", title: "Adicionar à tela inicial", sub: "Escolha esta opção para instalar o Ascend." },
+              ].map((s, i) => (
+                <div className="step-row" key={i}>
+                  <span
+                    style={{
+                      fontFamily: "JetBrains Mono, monospace",
+                      fontSize: 11,
+                      fontWeight: 700,
+                      color: "rgba(250,159,74,0.85)",
+                      flexShrink: 0,
+                      marginTop: 2,
+                      letterSpacing: "0.05em",
+                    }}
+                  >
+                    {s.n}
+                  </span>
+                  <div>
+                    <p style={{ fontWeight: 600, margin: 0, fontSize: 14 }}>{s.title}</p>
+                    <p style={{ margin: "3px 0 0", fontSize: 12, color: "rgba(255,255,255,0.4)" }}>{s.sub}</p>
+                  </div>
+                </div>
+              ))}
+              <div
+                style={{
+                  padding: 16,
+                  borderRadius: 12,
+                  background: "rgba(245,158,11,0.08)",
+                  border: "1px solid rgba(245,158,11,0.2)",
+                  fontSize: 13,
+                  color: "rgba(255,255,255,0.65)",
+                }}
+              >
+                Se ainda não aparecer, tente abrir este link diretamente no Chrome e atualizar.
+              </div>
             </div>
           )}
         </div>
@@ -486,6 +659,15 @@ export default function DownloadApp() {
                     ) : (
                       <Copy size={14} />
                     )}
+                  </button>
+                </div>
+
+                <div className="desktop-qr-actions">
+                  <button className="hero-btn hero-btn--secondary" onClick={() => window.open(APP_URL, "_blank") }>
+                    📱 Abrir no Celular
+                  </button>
+                  <button className="hero-btn hero-btn--primary" onClick={copyToClipboard}>
+                    📋 Copiar Link
                   </button>
                 </div>
               </div>
