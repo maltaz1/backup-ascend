@@ -1,14 +1,15 @@
 import React, { useState, useEffect } from "react";
 import {
   Download,
-  CheckCircle2,
-  Smartphone,
-  Zap,
+  Share2,
   Copy,
   Check,
-  ArrowDown,
-  Share2,
+  Smartphone,
+  Zap,
+  CheckCircle2,
   QrCode,
+  ChevronDown,
+  Bolt,
 } from "lucide-react";
 import { showToast } from "@/components/ui/FlowToast";
 import { usePWA } from "@/hooks/usePWA";
@@ -18,24 +19,27 @@ const APP_URL = "https://ascend-lac-zeta.vercel.app";
 type Platform = "android" | "ios" | "desktop" | "unknown";
 
 export default function DownloadApp() {
-  const { isInstallable, isInstalled, beforeInstallPromptReceived, serviceWorkerRegistered, displayModeStandalone, isOnline, installApp } = usePWA();
+  const {
+    isInstallable,
+    isInstalled,
+    beforeInstallPromptReceived,
+    serviceWorkerRegistered,
+    displayModeStandalone,
+    isOnline,
+    installApp,
+  } = usePWA();
+
   const [platform, setPlatform] = useState<Platform>("unknown");
   const [copied, setCopied] = useState(false);
+  const [openPlat, setOpenPlat] = useState<"android" | "ios" | null>(null);
+  const [statusOpen, setStatusOpen] = useState(false);
 
   useEffect(() => {
-    detectPlatform();
-  }, []);
-
-  useEffect(() => {
-    console.log("PWA STATUS", { isInstallable, isInstalled, platform });
-  }, [isInstallable, isInstalled, platform]);
-
-  const detectPlatform = () => {
     const ua = navigator.userAgent;
     if (/android/i.test(ua)) setPlatform("android");
     else if (/iphone|ipad|ipod/i.test(ua)) setPlatform("ios");
     else setPlatform("desktop");
-  };
+  }, []);
 
   const copyToClipboard = () => {
     navigator.clipboard.writeText(APP_URL);
@@ -47,12 +51,8 @@ export default function DownloadApp() {
   const shareLink = async () => {
     if (navigator.share) {
       try {
-        await navigator.share({
-          title: "Ascend",
-          text: "Instale o Ascend e abra direto da tela inicial.",
-          url: APP_URL,
-        });
-      } catch (error) {
+        await navigator.share({ title: "Ascend", text: "Instale o Ascend.", url: APP_URL });
+      } catch {
         copyToClipboard();
       }
     } else {
@@ -60,658 +60,434 @@ export default function DownloadApp() {
     }
   };
 
-  const generateQRCodeUrl = () =>
-    `https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=${encodeURIComponent(APP_URL)}&bgcolor=0d0d14&color=a78bfa&margin=16`;
-
-  const benefits = [
-    { icon: Zap, label: "Acesso rápido", desc: "Um toque da tela inicial", color: "#F59E0B" },
-    { icon: Smartphone, label: "Ícone nativo", desc: "Aparência de app real", color: "#A78BFA" },
-    { icon: CheckCircle2, label: "Full experience", desc: "Interface completa", color: "#34D399" },
-    { icon: Download, label: "Sem loja", desc: "Zero espaço ocupado", color: "#60A5FA" },
-  ];
-
-  const steps = {
-    android: [
-      { n: "01", title: "Toque em Instalar Agora", sub: "O banner do navegador será exibido automaticamente" },
-      { n: "02", title: "Confirme a instalação", sub: "Toque em Instalar na caixa de diálogo do Chrome" },
-      { n: "03", title: "Pronto! ✦", sub: "O ícone do Ascend aparece na sua tela inicial" },
-    ],
-    ios: [
-      { n: "01", title: "Toque no botão Compartilhar", sub: "Ícone ↑ na barra inferior do Safari" },
-      { n: "02", title: "Adicionar à Tela de Início", sub: "Role a lista de ações para encontrar esta opção" },
-      { n: "03", title: "Confirme e pronto! ✦", sub: "Toque em Adicionar — o app estará na sua home" },
-    ],
+  const handleInstall = async () => {
+    if (isInstallable) {
+      const ok = await installApp();
+      if (ok) showToast("Ascend instalado com sucesso! 🎉", "success");
+    } else {
+      showToast("Abra este app no Chrome do celular para instalar", "info");
+    }
   };
 
+  const togglePlat = (p: "android" | "ios") =>
+    setOpenPlat((prev) => (prev === p ? null : p));
+
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(APP_URL)}&bgcolor=08060f&color=a78bfa&margin=10`;
+
+  const androidSteps = [
+    { n: "01", title: "Toque em Instalar Agora", sub: "Banner do Chrome aparece automaticamente" },
+    { n: "02", title: "Confirme a instalação", sub: "Toque em Instalar na caixa de diálogo" },
+    { n: "03", title: "Pronto ✦", sub: "Ícone na tela inicial" },
+  ];
+
+  const iosSteps = [
+    { n: "01", title: "Toque em Compartilhar ↑", sub: "Barra inferior do Safari" },
+    { n: "02", title: "Adicionar à Tela de Início", sub: "Role a lista de ações" },
+    { n: "03", title: "Confirme ✦", sub: "Toque em Adicionar" },
+  ];
+
+  const benefits = [
+    { icon: Zap, label: "Acesso rápido", desc: "Um toque na tela inicial, sem abrir o navegador." },
+    { icon: Smartphone, label: "Ícone nativo", desc: "Aparência de app real, integrado ao sistema." },
+    { icon: CheckCircle2, label: "Full experience", desc: "Interface completa sem barra de endereços." },
+    { icon: Download, label: "Sem loja", desc: "Zero espaço ocupado, zero aprovação." },
+  ];
+
   return (
-    <div
-      style={{
-        fontFamily: "'Sora', sans-serif",
-        maxWidth: 900,
-        margin: "0 auto",
-        padding: "0 4px",
-        animation: "fadeUp 0.4s ease both",
-      }}
-    >
+    <div style={{ fontFamily: "'Sora', sans-serif", maxWidth: 860, margin: "0 auto" }}>
       <style>{`
-        @keyframes fadeUp {
-          from { opacity: 0; transform: translateY(16px); }
-          to   { opacity: 1; transform: translateY(0); }
+        .da-topbar {
+          display: flex; align-items: center; justify-content: space-between;
+          padding: 18px 20px; border-bottom: 1px solid #18152a;
         }
-        @keyframes pulse-ring {
-          0%, 100% { opacity: 0.4; transform: scale(1); }
-          50%       { opacity: 0.15; transform: scale(1.06); }
+        .da-topbar-left { display: flex; align-items: center; gap: 10px; }
+        .da-topbar-icon {
+          width: 32px; height: 32px; border-radius: 9px; background: #2d1f6e;
+          display: flex; align-items: center; justify-content: center;
         }
-        .dl-card {
-          background: rgba(255,255,255,0.035);
-          border: 1px solid rgba(255,255,255,0.07);
-          border-radius: 20px;
-          backdrop-filter: blur(12px);
+        .da-topbar h1 { font-size: 16px; font-weight: 700; letter-spacing: -.02em; color: #ede8ff; margin: 0; }
+        .da-topbar p { font-size: 11px; color: #3d3560; margin: 1px 0 0; }
+        .da-share-btn {
+          display: flex; align-items: center; gap: 6px;
+          font-family: 'Sora', sans-serif; font-size: 12px; font-weight: 500;
+          color: #7c6aab; background: transparent; border: 1px solid #221e38;
+          border-radius: 8px; padding: 7px 12px; cursor: pointer;
+          transition: border-color .18s, color .18s;
         }
-        .dl-primary-btn {
-          background: #6D28D9;
-          color: #fff;
-          border: none;
-          border-radius: 14px;
-          font-family: 'Sora', sans-serif;
-          font-weight: 600;
-          font-size: 15px;
-          letter-spacing: 0.01em;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 8px;
-          padding: 14px 24px;
-          transition: background 0.15s ease, transform 0.15s ease;
+        .da-share-btn:hover { border-color: #4a3d80; color: #a78bfa; }
+
+        .da-hero {
+          border: 1px solid #1a1628; border-radius: 14px; padding: 24px;
+          background: #0d0b18; margin: 16px;
         }
-        .dl-primary-btn:hover:not(:disabled) {
-          background: #7C3AED;
-          transform: translateY(-1px);
+        .da-hero-tag {
+          font-size: 10px; font-family: 'JetBrains Mono', monospace;
+          letter-spacing: .12em; color: #5b4db0; margin-bottom: 12px;
+          display: flex; align-items: center; gap: 6px;
         }
-        .dl-primary-btn:disabled {
-          opacity: 0.6;
-          cursor: default;
+        .da-hero-tag::before {
+          content: ''; width: 6px; height: 6px; border-radius: 50%;
+          background: #6d28d9; display: inline-block;
         }
-        .dl-ghost-btn {
-          background: rgba(255,255,255,0.06);
-          color: rgba(255,255,255,0.75);
-          border: 1px solid rgba(255,255,255,0.1);
-          border-radius: 14px;
-          font-family: 'Sora', sans-serif;
-          font-weight: 500;
-          font-size: 14px;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 8px;
-          padding: 14px 20px;
-          transition: all 0.18s ease;
+        .da-hero h2 {
+          font-size: 22px; font-weight: 800; letter-spacing: -.04em;
+          color: #ede8ff; line-height: 1.1; margin: 0 0 10px;
         }
-        .dl-ghost-btn:hover {
-          background: rgba(255,255,255,0.1);
-          border-color: rgba(255,255,255,0.18);
+        .da-hero > p { font-size: 13px; color: #5a5480; line-height: 1.6; max-width: 360px; margin: 0; }
+        .da-hero-actions { display: flex; align-items: center; gap: 10px; margin-top: 18px; flex-wrap: wrap; }
+
+        .da-btn-main {
+          display: flex; align-items: center; gap: 7px;
+          background: #6d28d9; color: #fff; border: none; border-radius: 9px;
+          font-family: 'Sora', sans-serif; font-weight: 600; font-size: 13px;
+          padding: 10px 18px; cursor: pointer; transition: background .15s;
         }
-        .benefit-card {
-          background: rgba(255,255,255,0.025);
-          border: 1px solid rgba(255,255,255,0.06);
-          border-radius: 16px;
-          padding: 20px;
-          transition: all 0.2s ease;
-          flex: 1 1 160px;
+        .da-btn-main:hover { background: #7c3aed; }
+        .da-btn-sec {
+          display: flex; align-items: center; gap: 7px;
+          background: transparent; color: #7c6aab; border: 1px solid #221e38;
+          border-radius: 9px; font-family: 'Sora', sans-serif; font-weight: 500;
+          font-size: 13px; padding: 10px 16px; cursor: pointer;
+          transition: border-color .15s, color .15s;
         }
-        .benefit-card:hover {
-          background: rgba(255,255,255,0.05);
-          border-color: rgba(255,255,255,0.12);
-          transform: translateY(-2px);
+        .da-btn-sec:hover { border-color: #4a3d80; color: #a78bfa; }
+
+        .da-label {
+          font-size: 10px; font-family: 'JetBrains Mono', monospace;
+          letter-spacing: .1em; color: #3d3560; text-transform: uppercase;
+          padding: 0 16px; margin: 16px 0 8px; display: block;
         }
-        .step-row {
-          display: flex;
-          align-items: flex-start;
-          gap: 16px;
-          padding: 16px;
-          border-radius: 14px;
-          background: rgba(255,255,255,0.025);
-          border: 1px solid rgba(255,255,255,0.05);
-          transition: background 0.2s;
+
+        .da-plat-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 0 16px 12px; }
+        .da-plat-card {
+          border: 1px solid #1c1928; border-radius: 12px; background: #111019;
+          overflow: hidden; cursor: pointer; transition: border-color .2s;
         }
-        .step-row:hover { background: rgba(255,255,255,0.04); }
-        .hero-card {
-          background: linear-gradient(135deg, #5B21B6 0%, #7C3AED 55%, #A855F7 100%);
-          border-radius: 28px;
-          padding: 28px;
-          box-shadow: 0 26px 80px rgba(92, 33, 132, 0.18);
-          overflow: hidden;
-          position: relative;
-          margin-bottom: 24px;
-          color: white;
+        .da-plat-card:hover, .da-plat-card.open { border-color: #2d2650; }
+        .da-plat-header { display: flex; align-items: center; justify-content: space-between; padding: 13px 14px; }
+        .da-plat-header-left { display: flex; align-items: center; gap: 9px; }
+        .da-plat-icon {
+          width: 28px; height: 28px; border-radius: 7px; background: #1a1530;
+          display: flex; align-items: center; justify-content: center; flex-shrink: 0;
         }
-        .hero-card::before {
-          content: "";
-          position: absolute;
-          inset: 0;
-          background: radial-gradient(circle at top right, rgba(255,255,255,0.15), transparent 45%);
-          pointer-events: none;
+        .da-plat-name { font-size: 13px; font-weight: 600; color: #cfc8f0; letter-spacing: -.01em; }
+        .da-plat-desc { font-size: 11px; color: #3d3560; margin-top: 2px; }
+        .da-plat-arrow { color: #3d3560; font-size: 14px; transition: transform .2s; flex-shrink: 0; }
+        .da-plat-arrow.open { transform: rotate(180deg); }
+        .da-plat-body { border-top: 1px solid #1c1928; padding: 14px; }
+
+        .da-step {
+          display: flex; gap: 10px; align-items: flex-start;
+          padding: 9px 11px; border-radius: 8px; background: #0d0b18;
+          border: 1px solid #18152a; margin-bottom: 7px; transition: border-color .18s;
         }
-        .hero-card-inner {
-          position: relative;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 20px;
-          flex-wrap: wrap;
+        .da-step:last-of-type { margin-bottom: 0; }
+        .da-step:hover { border-color: #2d2650; }
+        .da-step-n {
+          font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 600;
+          color: #4a3d80; flex-shrink: 0; margin-top: 1px; letter-spacing: .04em;
         }
-        .hero-card__icon {
-          width: 88px;
-          height: 88px;
-          border-radius: 28px;
-          background: rgba(255,255,255,0.12);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          box-shadow: inset 0 0 0 1px rgba(255,255,255,0.12);
-          flex-shrink: 0;
+        .da-step-title { font-size: 12px; font-weight: 600; color: #cfc8f0; line-height: 1.2; }
+        .da-step-sub { font-size: 11px; color: #3d3560; margin-top: 2px; line-height: 1.4; }
+        .da-note {
+          border: 1px solid #2a1f10; border-radius: 8px; padding: 10px 12px;
+          background: #100d06; color: #a37c40; font-size: 11px; line-height: 1.5; margin-top: 10px;
         }
-        .hero-card__title {
-          font-size: 28px;
-          font-weight: 800;
-          margin: 0 0 8px;
-          line-height: 1.05;
+
+        .da-collapse {
+          border: 1px solid #18152a; border-radius: 12px;
+          margin: 0 16px 12px; overflow: hidden; background: #0c0a17;
         }
-        .hero-card__subtitle {
-          margin: 0;
-          color: rgba(255,255,255,0.82);
-          font-size: 15px;
-          max-width: 520px;
+        .da-collapse-header {
+          display: flex; align-items: center; justify-content: space-between;
+          padding: 14px 18px; cursor: pointer; user-select: none;
         }
-        .hero-actions {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          flex-wrap: wrap;
-          margin-top: 18px;
+        .da-collapse-left { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: #cfc8f0; }
+        .da-collapse-dot { width: 7px; height: 7px; border-radius: 50%; background: #f59e0b; flex-shrink: 0; }
+        .da-collapse-arrow { color: #3d3560; transition: transform .2s; }
+        .da-collapse-arrow.open { transform: rotate(180deg); }
+        .da-collapse-body { border-top: 1px solid #18152a; padding: 18px; }
+        .da-debug-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+        .da-debug-item { font-size: 11px; font-family: 'JetBrains Mono', monospace; color: #3d3560; }
+        .da-debug-item b { color: #4a3d80; font-weight: 400; }
+        .da-v-true { color: #4ade80 !important; }
+        .da-v-false { color: #f87171 !important; }
+
+        .da-qr-card { border: 1px solid #1a1628; border-radius: 12px; margin: 0 16px 12px; background: #0c0a17; padding: 20px; }
+        .da-qr-block { display: flex; gap: 18px; align-items: flex-start; flex-wrap: wrap; }
+        .da-qr-frame { border: 1px solid #221e38; border-radius: 9px; padding: 9px; background: #08060f; flex-shrink: 0; }
+        .da-qr-frame img { width: 88px; height: 88px; display: block; border-radius: 4px; }
+        .da-qr-info h3 { font-size: 13px; font-weight: 700; color: #ede8ff; margin: 0 0 4px; }
+        .da-qr-info p { font-size: 12px; color: #5a5480; line-height: 1.5; margin: 0 0 12px; }
+        .da-url-row {
+          display: flex; align-items: center; gap: 8px; background: #08060f;
+          border: 1px solid #1a1628; border-radius: 7px; padding: 7px 11px; margin-bottom: 10px;
         }
-        .hero-btn {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          gap: 10px;
-          padding: 14px 22px;
-          border-radius: 16px;
-          border: 1px solid rgba(255,255,255,0.18);
-          font-weight: 700;
-          font-size: 14px;
-          cursor: pointer;
-          transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
-          min-width: 160px;
+        .da-url-row code { flex: 1; font-size: 11px; font-family: 'JetBrains Mono', monospace; color: #6d5ea0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .da-copy-btn { background: transparent; border: none; color: #3d3560; cursor: pointer; display: flex; padding: 2px; transition: color .15s; }
+        .da-copy-btn:hover { color: #a78bfa; }
+        .da-check-list { display: flex; flex-direction: column; gap: 4px; }
+        .da-check-item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: #5a5480; }
+        .da-check-item::before { content: '✓'; color: #6d28d9; font-size: 10px; font-weight: 700; }
+
+        .da-benefits { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 0 16px 14px; }
+        .da-ben { border: 1px solid #1a1628; border-radius: 11px; padding: 14px; background: #0d0b18; }
+        .da-ben-icon { width: 28px; height: 28px; border-radius: 7px; background: #1a1530; display: flex; align-items: center; justify-content: center; margin-bottom: 9px; }
+        .da-ben-title { font-size: 12px; font-weight: 700; color: #cfc8f0; margin-bottom: 2px; }
+        .da-ben-sub { font-size: 11px; color: #3d3560; line-height: 1.4; }
+
+        .da-footer {
+          display: flex; align-items: center; justify-content: space-between; gap: 12px;
+          border: 1px solid #1a1628; border-radius: 12px; margin: 0 16px 16px;
+          padding: 14px 18px; background: #0d0b18; flex-wrap: wrap;
         }
-        .hero-btn:hover {
-          transform: translateY(-1px);
-          box-shadow: 0 14px 40px rgba(0,0,0,0.12);
-        }
-        .hero-btn--primary {
-          background: white;
-          color: #5B21B6;
-          border-color: transparent;
-        }
-        .hero-btn--secondary {
-          background: rgba(255,255,255,0.12);
-          color: white;
-        }
-        .hero-btn--success {
-          background: rgba(34,197,94,0.18);
-          color: #D9F99D;
-          border-color: rgba(34,197,94,0.3);
-        }
-        .hero-status {
-          display: inline-flex;
-          align-items: center;
-          gap: 10px;
-          margin-top: 12px;
-          padding: 12px 16px;
-          border-radius: 16px;
-          background: rgba(34,197,94,0.12);
-          border: 1px solid rgba(34,197,94,0.22);
-          color: #D9F99D;
-          font-size: 14px;
-        }
-        .hero-card__note {
-          margin-top: 10px;
-          color: rgba(255,255,255,0.7);
-          font-size: 13px;
-        }
-        .desktop-qr-actions {
-          display: flex;
-          gap: 12px;
-          flex-wrap: wrap;
-          margin-top: 18px;
-        }
-        .desktop-qr-actions button {
-          min-width: 160px;
-        }
-        .copy-field {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          background: rgba(0,0,0,0.3);
-          border: 1px solid rgba(255,255,255,0.08);
-          border-radius: 12px;
-          padding: 12px 14px;
-        }
-        @media (max-width: 600px) {
-          .desktop-grid { grid-template-columns: 1fr !important; }
-          .header-row { flex-direction: column !important; align-items: stretch !important; }
-          .header-actions { width: 100%; }
-          .header-actions button { flex: 1; }
-          .benefits-row { flex-wrap: wrap; }
-          .hero-card { padding: 22px; }
-          .hero-card__title { font-size: 24px; }
-          .hero-card__icon { width: 72px; height: 72px; }
+        .da-footer p { font-size: 13px; font-weight: 600; color: #ede8ff; margin: 0; }
+        .da-footer code { font-size: 11px; font-family: 'JetBrains Mono', monospace; color: #3d3560; margin-top: 2px; display: block; }
+
+        @media (max-width: 520px) {
+          .da-plat-row { grid-template-columns: 1fr; }
+          .da-benefits { grid-template-columns: 1fr 1fr; }
+          .da-qr-block { flex-direction: column; }
+          .da-debug-grid { grid-template-columns: 1fr; }
+          .da-hero h2 { font-size: 18px; }
         }
       `}</style>
 
-      {/* ── HEADER ── */}
-      <div
-        className="header-row"
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          gap: 16,
-          marginBottom: 28,
-          flexWrap: "wrap",
-        }}
-      >
-        <div>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
-            <div
-              style={{
-                width: 36,
-                height: 36,
-                borderRadius: 10,
-                background: "#6D28D9",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <Download size={16} color="#fff" />
-            </div>
-            <h1 style={{ fontSize: 22, fontWeight: 700, letterSpacing: "-0.02em", margin: 0 }}>
-              Baixar App
-            </h1>
+      {/* ── TOPBAR ── */}
+      <div className="da-topbar">
+        <div className="da-topbar-left">
+          <div className="da-topbar-icon">
+            <Download size={16} color="#a78bfa" />
           </div>
-          <p style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", margin: 0 }}>
-            Instale em qualquer dispositivo em segundos
-          </p>
+          <div>
+            <h1>Baixar App</h1>
+            <p>Instale em qualquer dispositivo</p>
+          </div>
         </div>
+        <button className="da-share-btn" onClick={shareLink}>
+          <Share2 size={12} />
+          Compartilhar
+        </button>
+      </div>
 
-        <div className="header-actions" style={{ display: "flex", gap: 10 }}>
-          <button className="dl-ghost-btn" onClick={shareLink}>
-            <Share2 size={15} />
-            Compartilhar
+      {/* ── HERO ── */}
+      <div className="da-hero">
+        <div className="da-hero-tag">PROGRESSIVE WEB APP</div>
+        <h2>Acesso instantâneo da tela inicial</h2>
+        <p>
+          Instale o Ascend como um app nativo. Sem loja, sem downloads pesados —
+          funciona em qualquer dispositivo com um toque.
+        </p>
+        <div className="da-hero-actions">
+          <button className="da-btn-main" onClick={handleInstall}>
+            <Download size={13} />
+            Instalar Agora
+          </button>
+          <button className="da-btn-sec" onClick={copyToClipboard}>
+            {copied ? <Check size={13} /> : <Copy size={13} />}
+            Copiar link
           </button>
         </div>
       </div>
 
-      <div className="hero-card">
-        <div className="hero-card-inner">
-          <div>
-            <div className="hero-card__icon">
-              <Download size={34} />
-            </div>
-            <div style={{ marginTop: 18 }}>
-              <p className="hero-card__note">Instale o Ascend</p>
-              <h2 className="hero-card__title">Tenha acesso instantâneo diretamente da tela inicial.</h2>
-              <p className="hero-card__subtitle">Use o Ascend como um aplicativo nativo no seu dispositivo.</p>
-              {!isInstallable && (
-                <p className="hero-card__note" style={{ marginTop: 14, opacity: 0.9 }}>
-                  Seu navegador ainda não disponibilizou a instalação automática.
-                </p>
-              )}
-            </div>
-          </div>
+      {/* ── GUIA DE INSTALAÇÃO (lado a lado) ── */}
+      <span className="da-label">Guia de instalação</span>
+      <div className="da-plat-row">
 
-          <div className="hero-actions">
-            <button
-              className="hero-btn hero-btn--primary"
-              onClick={async () => {
-                if (isInstallable) {
-                  const ok = await installApp();
-                  if (ok) showToast("Ascend instalado com sucesso! 🎉", "success");
-                } else {
-                  showToast("Abra este app no Chrome do celular para instalar", "info");
-                }
-              }}
-            >
-              📲 Instalar Agora
-            </button>
-            <div style={{ display: "flex", gap: 12, flexWrap: "wrap", justifyContent: "flex-start" }}>
-              <button className="hero-btn hero-btn--secondary" onClick={copyToClipboard}>
-                📋 Copiar Link
-              </button>
-              <button className="hero-btn hero-btn--secondary" onClick={shareLink}>
-                📱 Compartilhar
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="dl-card" style={{ padding: 22, marginBottom: 24, borderRadius: 22, background: 'rgba(15,23,42,0.8)' }}>
-        <h3 style={{ fontSize: 16, fontWeight: 700, margin: '0 0 12px' }}>Debug PWA</h3>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12, fontSize: 13 }}>
-          <div><strong>isInstallable:</strong> {String(isInstallable)}</div>
-          <div><strong>Installed:</strong> {String(isInstalled)}</div>
-          <div><strong>Prompt recebido:</strong> {String(beforeInstallPromptReceived)}</div>
-          <div><strong>Service Worker:</strong> {serviceWorkerRegistered ? 'registrado' : 'pendente'}</div>
-          <div><strong>Display mode:</strong> {displayModeStandalone ? 'standalone' : 'browser'}</div>
-          <div><strong>Online:</strong> {String(isOnline)}</div>
-        </div>
-      </div>
-
-      {/* ── PLATFORM SECTIONS ── */}
-
-      {/* ANDROID */}
-      {platform === "android" && (
-        <div className="dl-card" style={{ padding: 24, marginBottom: 20 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
-            <span style={{ fontSize: 22 }}>🤖</span>
-            <h2 style={{ fontSize: 16, fontWeight: 600, margin: 0 }}>Android</h2>
-          </div>
-          {isInstallable ? (
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {steps.android.map((s, i) => (
-                <div className="step-row" key={i}>
-                  <span
-                    style={{
-                      fontFamily: "JetBrains Mono, monospace",
-                      fontSize: 11,
-                      fontWeight: 700,
-                      color: "rgba(167,139,250,0.7)",
-                      flexShrink: 0,
-                      marginTop: 2,
-                      letterSpacing: "0.05em",
-                    }}
-                  >
-                    {s.n}
-                  </span>
-                  <div>
-                    <p style={{ fontWeight: 600, margin: 0, fontSize: 14 }}>{s.title}</p>
-                    <p style={{ margin: "3px 0 0", fontSize: 12, color: "rgba(255,255,255,0.4)" }}>{s.sub}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {[
-                { n: "01", title: "Abra no Chrome", sub: "Use o navegador Chrome no Android." },
-                { n: "02", title: "Toque em ⋮", sub: "Abra o menu do navegador no canto superior direito." },
-                { n: "03", title: "Adicionar à tela inicial", sub: "Escolha esta opção para instalar o Ascend." },
-              ].map((s, i) => (
-                <div className="step-row" key={i}>
-                  <span
-                    style={{
-                      fontFamily: "JetBrains Mono, monospace",
-                      fontSize: 11,
-                      fontWeight: 700,
-                      color: "rgba(250,159,74,0.85)",
-                      flexShrink: 0,
-                      marginTop: 2,
-                      letterSpacing: "0.05em",
-                    }}
-                  >
-                    {s.n}
-                  </span>
-                  <div>
-                    <p style={{ fontWeight: 600, margin: 0, fontSize: 14 }}>{s.title}</p>
-                    <p style={{ margin: "3px 0 0", fontSize: 12, color: "rgba(255,255,255,0.4)" }}>{s.sub}</p>
-                  </div>
-                </div>
-              ))}
-              <div
-                style={{
-                  padding: 16,
-                  borderRadius: 12,
-                  background: "rgba(245,158,11,0.08)",
-                  border: "1px solid rgba(245,158,11,0.2)",
-                  fontSize: 13,
-                  color: "rgba(255,255,255,0.65)",
-                }}
-              >
-                Se ainda não aparecer, tente abrir este link diretamente no Chrome e atualizar.
+        {/* ANDROID */}
+        <div
+          className={`da-plat-card${openPlat === "android" ? " open" : ""}`}
+          onClick={() => togglePlat("android")}
+        >
+          <div className="da-plat-header">
+            <div className="da-plat-header-left">
+              <div className="da-plat-icon">
+                <Smartphone size={14} color="#a78bfa" />
               </div>
+              <div>
+                <div className="da-plat-name">Android</div>
+                <div className="da-plat-desc">Chrome · instala 1 toque</div>
+              </div>
+            </div>
+            <ChevronDown
+              size={14}
+              className={`da-plat-arrow${openPlat === "android" ? " open" : ""}`}
+              style={{ color: "#3d3560", transition: "transform .2s", transform: openPlat === "android" ? "rotate(180deg)" : "none" }}
+            />
+          </div>
+          {openPlat === "android" && (
+            <div className="da-plat-body">
+              {isInstallable ? (
+                androidSteps.map((s) => (
+                  <div className="da-step" key={s.n}>
+                    <span className="da-step-n">{s.n}</span>
+                    <div>
+                      <div className="da-step-title">{s.title}</div>
+                      <div className="da-step-sub">{s.sub}</div>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <>
+                  {[
+                    { n: "01", title: "Abra no Chrome", sub: "Use o navegador Chrome no Android" },
+                    { n: "02", title: "Toque em ⋮", sub: "Menu no canto superior direito" },
+                    { n: "03", title: "Adicionar à tela inicial", sub: "Escolha esta opção para instalar" },
+                  ].map((s) => (
+                    <div className="da-step" key={s.n}>
+                      <span className="da-step-n">{s.n}</span>
+                      <div>
+                        <div className="da-step-title">{s.title}</div>
+                        <div className="da-step-sub">{s.sub}</div>
+                      </div>
+                    </div>
+                  ))}
+                  <div className="da-note">
+                    Se o banner não aparecer, abra o link diretamente no Chrome e tente novamente.
+                  </div>
+                </>
+              )}
             </div>
           )}
         </div>
-      )}
 
-      {/* iOS */}
-      {platform === "ios" && (
-        <div className="dl-card" style={{ padding: 24, marginBottom: 20 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
-            <span style={{ fontSize: 22 }}>🍎</span>
-            <h2 style={{ fontSize: 16, fontWeight: 600, margin: 0 }}>iPhone / iPad</h2>
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {steps.ios.map((s, i) => (
-              <div className="step-row" key={i}>
-                <span
-                  style={{
-                    fontFamily: "JetBrains Mono, monospace",
-                    fontSize: 11,
-                    fontWeight: 700,
-                    color: "rgba(167,139,250,0.7)",
-                    flexShrink: 0,
-                    marginTop: 2,
-                    letterSpacing: "0.05em",
-                  }}
-                >
-                  {s.n}
-                </span>
-                <div>
-                  <p style={{ fontWeight: 600, margin: 0, fontSize: 14 }}>{s.title}</p>
-                  <p style={{ margin: "3px 0 0", fontSize: 12, color: "rgba(255,255,255,0.4)" }}>{s.sub}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* DESKTOP */}
-      {platform === "desktop" && (
-        <div className="dl-card" style={{ padding: 28, marginBottom: 20 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 24 }}>
-            <QrCode size={18} style={{ color: "rgba(167,139,250,0.8)" }} />
-            <h2 style={{ fontSize: 16, fontWeight: 600, margin: 0 }}>Escaneie para instalar no celular</h2>
-          </div>
-
-          <div
-            className="desktop-grid"
-            style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: 32, alignItems: "center" }}
-          >
-            {/* QR */}
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
-              <div
-                style={{
-                  position: "relative",
-                  padding: 14,
-                  borderRadius: 20,
-                  background: "#0d0d14",
-                  border: "1px solid rgba(167,139,250,0.18)",
-                }}
-              >
-                <div
-                  style={{
-                    position: "absolute",
-                    inset: -8,
-                    borderRadius: 24,
-                    border: "1px solid rgba(167,139,250,0.12)",
-                    animation: "pulse-ring 3s ease-in-out infinite",
-                  }}
-                />
-                <img
-                  src={generateQRCodeUrl()}
-                  alt="QR Code"
-                  style={{ width: 160, height: 160, borderRadius: 8, display: "block" }}
-                />
-              </div>
-              <p style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", textAlign: "center", margin: 0 }}>
-                Aponte a câmera do celular
-              </p>
-            </div>
-
-            {/* Link + info */}
-            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-              <div>
-                <p style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", marginBottom: 8 }}>
-                  Ou copie o link direto:
-                </p>
-                <div className="copy-field">
-                  <code
-                    style={{
-                      flex: 1,
-                      fontSize: 12,
-                      color: "rgba(167,139,250,0.9)",
-                      fontFamily: "JetBrains Mono, monospace",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    {APP_URL}
-                  </code>
-                  <button
-                    onClick={copyToClipboard}
-                    style={{
-                      background: "transparent",
-                      border: "none",
-                      color: "rgba(255,255,255,0.4)",
-                      cursor: "pointer",
-                      padding: "2px 4px",
-                      display: "flex",
-                      alignItems: "center",
-                      transition: "color 0.15s",
-                      flexShrink: 0,
-                    }}
-                    title="Copiar"
-                  >
-                    {copied ? (
-                      <Check size={14} style={{ color: "#34D399" }} />
-                    ) : (
-                      <Copy size={14} />
-                    )}
-                  </button>
-                </div>
-
-                <div className="desktop-qr-actions">
-                  <button className="hero-btn hero-btn--secondary" onClick={() => window.open(APP_URL, "_blank") }>
-                    📱 Abrir no Celular
-                  </button>
-                  <button className="hero-btn hero-btn--primary" onClick={copyToClipboard}>
-                    📋 Copiar Link
-                  </button>
-                </div>
-              </div>
-
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {[
-                  "Compartilhe com amigos e família",
-                  "Funciona em qualquer navegador mobile",
-                  "Instala direto da tela inicial, sem loja",
-                ].map((tip, i) => (
-                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <div
-                      style={{
-                        width: 5,
-                        height: 5,
-                        borderRadius: "50%",
-                        background: "rgba(167,139,250,0.6)",
-                        flexShrink: 0,
-                      }}
-                    />
-                    <p style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", margin: 0 }}>{tip}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── BENEFITS ── */}
-      <div style={{ marginBottom: 20 }}>
-        <p
-          style={{
-            fontSize: 11,
-            fontWeight: 600,
-            letterSpacing: "0.1em",
-            textTransform: "uppercase",
-            color: "rgba(255,255,255,0.3)",
-            marginBottom: 12,
-          }}
-        >
-          Por que instalar?
-        </p>
+        {/* iOS */}
         <div
-          className="benefits-row"
-          style={{ display: "flex", gap: 10, flexWrap: "wrap" }}
+          className={`da-plat-card${openPlat === "ios" ? " open" : ""}`}
+          onClick={() => togglePlat("ios")}
         >
-          {benefits.map((b, i) => {
-            const Icon = b.icon;
-            return (
-              <div className="benefit-card" key={i}>
-                <div
-                  style={{
-                    width: 36,
-                    height: 36,
-                    borderRadius: 10,
-                    background: `${b.color}18`,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    marginBottom: 12,
-                  }}
-                >
-                  <Icon size={16} style={{ color: b.color }} />
-                </div>
-                <p style={{ fontWeight: 600, fontSize: 13, margin: "0 0 4px" }}>{b.label}</p>
-                <p style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", margin: 0 }}>{b.desc}</p>
+          <div className="da-plat-header">
+            <div className="da-plat-header-left">
+              <div className="da-plat-icon">
+                <QrCode size={14} color="#a78bfa" />
               </div>
-            );
-          })}
+              <div>
+                <div className="da-plat-name">iPhone / iPad</div>
+                <div className="da-plat-desc">Safari · menu compartilhar</div>
+              </div>
+            </div>
+            <ChevronDown
+              size={14}
+              style={{ color: "#3d3560", transition: "transform .2s", transform: openPlat === "ios" ? "rotate(180deg)" : "none" }}
+            />
+          </div>
+          {openPlat === "ios" && (
+            <div className="da-plat-body">
+              {iosSteps.map((s) => (
+                <div className="da-step" key={s.n}>
+                  <span className="da-step-n">{s.n}</span>
+                  <div>
+                    <div className="da-step-title">{s.title}</div>
+                    <div className="da-step-sub">{s.sub}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+      </div>
+
+      {/* ── STATUS DE INSTALAÇÃO (colapsável) ── */}
+      <div className="da-collapse">
+        <div className="da-collapse-header" onClick={() => setStatusOpen((p) => !p)}>
+          <div className="da-collapse-left">
+            <div className="da-collapse-dot" />
+            Status de instalação
+          </div>
+          <ChevronDown
+            size={14}
+            style={{ color: "#3d3560", transition: "transform .2s", transform: statusOpen ? "rotate(180deg)" : "none" }}
+          />
+        </div>
+        {statusOpen && (
+          <div className="da-collapse-body">
+            <div className="da-debug-grid">
+              <div className="da-debug-item">
+                <b>isInstallable </b>
+                <span className={isInstallable ? "da-v-true" : "da-v-false"}>{String(isInstallable)}</span>
+              </div>
+              <div className="da-debug-item">
+                <b>isInstalled </b>
+                <span className={isInstalled ? "da-v-true" : "da-v-false"}>{String(isInstalled)}</span>
+              </div>
+              <div className="da-debug-item">
+                <b>beforeInstallPrompt </b>
+                <span className={beforeInstallPromptReceived ? "da-v-true" : "da-v-false"}>{String(beforeInstallPromptReceived)}</span>
+              </div>
+              <div className="da-debug-item">
+                <b>serviceWorker </b>
+                <span className={serviceWorkerRegistered ? "da-v-true" : "da-v-false"}>
+                  {serviceWorkerRegistered ? "registrado" : "pendente"}
+                </span>
+              </div>
+              <div className="da-debug-item">
+                <b>displayMode </b>
+                <span>{displayModeStandalone ? "standalone" : "browser"}</span>
+              </div>
+              <div className="da-debug-item">
+                <b>online </b>
+                <span className={isOnline ? "da-v-true" : "da-v-false"}>{String(isOnline)}</span>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ── QR / CELULAR ── */}
+      <span className="da-label">Instalar no celular</span>
+      <div className="da-qr-card">
+        <div className="da-qr-block">
+          <div className="da-qr-frame">
+            <img src={qrUrl} alt="QR Code Ascend" />
+          </div>
+          <div className="da-qr-info">
+            <h3>Escaneie para instalar no celular</h3>
+            <p>
+              Aponte a câmera para o QR ou acesse o link direto no navegador do
+              seu dispositivo.
+            </p>
+            <div className="da-url-row">
+              <code>{APP_URL.replace("https://", "")}</code>
+              <button className="da-copy-btn" onClick={copyToClipboard} title="Copiar">
+                {copied ? <Check size={12} color="#34D399" /> : <Copy size={12} />}
+              </button>
+            </div>
+            <div className="da-check-list">
+              <div className="da-check-item">Funciona em qualquer navegador mobile</div>
+              <div className="da-check-item">Instala direto da tela inicial sem loja</div>
+              <div className="da-check-item">Compartilhe com amigos e família</div>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* ── SHARE FOOTER ── */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 12,
-          padding: "16px 20px",
-          borderRadius: 16,
-          background: "rgba(124,58,237,0.07)",
-          border: "1px solid rgba(124,58,237,0.2)",
-          flexWrap: "wrap",
-        }}
-      >
+      {/* ── POR QUE INSTALAR ── */}
+      <span className="da-label">Por que instalar?</span>
+      <div className="da-benefits">
+        {benefits.map((b, i) => {
+          const Icon = b.icon;
+          return (
+            <div className="da-ben" key={i}>
+              <div className="da-ben-icon">
+                <Icon size={13} color="#a78bfa" />
+              </div>
+              <div className="da-ben-title">{b.label}</div>
+              <div className="da-ben-sub">{b.desc}</div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* ── FOOTER ── */}
+      <div className="da-footer">
         <div>
-          <p style={{ fontSize: 13, fontWeight: 500, margin: 0 }}>Compartilhe o Ascend</p>
-          <p style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", margin: "2px 0 0", fontFamily: "JetBrains Mono, monospace" }}>
-            {APP_URL}
-          </p>
+          <p>Compartilhe o Ascend</p>
+          <code>{APP_URL}</code>
         </div>
-        <button
-          className="dl-primary-btn"
-          onClick={copyToClipboard}
-          style={{ padding: "11px 20px", fontSize: 13 }}
-        >
-          {copied ? <><Check size={14} /> Copiado!</> : <><Copy size={14} /> Copiar Link</>}
+        <button className="da-btn-main" onClick={copyToClipboard} style={{ fontSize: 12, padding: "9px 16px" }}>
+          {copied ? <Check size={12} /> : <Copy size={12} />}
+          {copied ? "Copiado!" : "Copiar Link"}
         </button>
       </div>
     </div>
