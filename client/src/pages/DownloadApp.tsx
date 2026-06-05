@@ -348,12 +348,10 @@ export default function DownloadApp() {
         </div>
 
         <div className="header-actions" style={{ display: "flex", gap: 10 }}>
-          {!isInstalled && (
-            <button className="dl-ghost-btn" onClick={shareLink}>
-              <Share2 size={15} />
-              Compartilhar
-            </button>
-          )}
+          <button className="dl-ghost-btn" onClick={shareLink}>
+            <Share2 size={15} />
+            Compartilhar
+          </button>
         </div>
       </div>
 
@@ -367,7 +365,7 @@ export default function DownloadApp() {
               <p className="hero-card__note">Instale o Ascend</p>
               <h2 className="hero-card__title">Tenha acesso instantâneo diretamente da tela inicial.</h2>
               <p className="hero-card__subtitle">Use o Ascend como um aplicativo nativo no seu dispositivo.</p>
-              {!isInstallable && !isInstalled && (
+              {!isInstallable && (
                 <p className="hero-card__note" style={{ marginTop: 14, opacity: 0.9 }}>
                   Seu navegador ainda não disponibilizou a instalação automática.
                 </p>
@@ -376,100 +374,36 @@ export default function DownloadApp() {
           </div>
 
           <div className="hero-actions">
-            {isInstalled ? (
-              <>
-                <button
-                  className="hero-btn hero-btn--success"
-                  onClick={() => {
-                    window.location.href = "/";
-                  }}
-                >
-                  🚀 Abrir Aplicativo
-                </button>
-                <div className="hero-status">
-                  ✓ Ascend instalado
-                </div>
-              </>
-            ) : isInstallable ? (
-              <button
-                className="hero-btn hero-btn--primary"
-                onClick={async () => {
+            <button
+              className="hero-btn hero-btn--primary"
+              onClick={async () => {
+                if (isInstallable) {
                   const ok = await installApp();
                   if (ok) showToast("Ascend instalado com sucesso! 🎉", "success");
-                }}
-              >
-                📲 Instalar Agora
+                } else {
+                  showToast("Abra este app no Chrome do celular para instalar", "info");
+                }
+              }}
+            >
+              📲 Instalar Agora
+            </button>
+            <div style={{ display: "flex", gap: 12, flexWrap: "wrap", justifyContent: "flex-start" }}>
+              <button className="hero-btn hero-btn--secondary" onClick={copyToClipboard}>
+                📋 Copiar Link
               </button>
-            ) : (
-              <div style={{ display: "flex", gap: 12, flexWrap: "wrap", justifyContent: "flex-start" }}>
-                <button className="hero-btn hero-btn--secondary" onClick={copyToClipboard}>
-                  📋 Copiar Link
-                </button>
-                <button className="hero-btn hero-btn--secondary" onClick={shareLink}>
-                  📱 Compartilhar
-                </button>
-              </div>
-            )}
+              <button className="hero-btn hero-btn--secondary" onClick={shareLink}>
+                📱 Compartilhar
+              </button>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* ── INSTALLED BADGE ── */}
-      {isInstalled && (
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 12,
-            padding: "16px 20px",
-            borderRadius: 20,
-            background: "rgba(34,197,94,0.12)",
-            border: "1px solid rgba(34,197,94,0.22)",
-            marginBottom: 20,
-            backdropFilter: "blur(12px)",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <div
-              style={{
-                width: 42,
-                height: 42,
-                borderRadius: "50%",
-                background: "rgba(34,197,94,0.18)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                flexShrink: 0,
-              }}
-            >
-              <Check size={20} color="#34D399" />
-            </div>
-            <div>
-              <p style={{ fontWeight: 700, color: "#ECFDF5", margin: 0, fontSize: 15 }}>
-                ✓ Ascend instalado com sucesso
-              </p>
-              <p style={{ fontSize: 13, color: "rgba(255,255,255,0.65)", margin: "4px 0 0" }}>
-                Você já possui o aplicativo instalado e pode acessá-lo pela tela inicial.
-              </p>
-            </div>
-          </div>
-          <button
-            className="hero-btn hero-btn--success"
-            onClick={() => {
-              window.location.href = "/";
-            }}
-            style={{ marginLeft: "auto" }}
-          >
-            Abrir Aplicativo
-          </button>
-        </div>
-      )}
 
       {/* ── PLATFORM SECTIONS ── */}
 
       {/* ANDROID */}
-      {platform === "android" && !isInstalled && (
+      {platform === "android" && (
         <div className="dl-card" style={{ padding: 24, marginBottom: 20 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
             <span style={{ fontSize: 22 }}>🤖</span>
@@ -544,7 +478,7 @@ export default function DownloadApp() {
       )}
 
       {/* iOS */}
-      {platform === "ios" && !isInstalled && (
+      {platform === "ios" && (
         <div className="dl-card" style={{ padding: 24, marginBottom: 20 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
             <span style={{ fontSize: 22 }}>🍎</span>
