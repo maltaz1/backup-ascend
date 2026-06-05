@@ -258,7 +258,7 @@ export function Layout({
                   >
                     <span className="fz-sidebar-label">{item.label}</span>
 
-                    {item.id === "download" && (
+                    {item.id === "download" && isInstallable && !isInstalled && (
                       <div
                         style={{
                           display: "flex",
@@ -271,26 +271,18 @@ export function Layout({
                           tabIndex={0}
                           onClick={async (e) => {
                             e.stopPropagation();
-                            if (isInstallable && !isInstalled) {
-                              const success = await handleInstall();
-                              if (success) {
-                                showToast("Aplicativo instalado com sucesso! 🎉", "success");
-                              }
-                            } else {
-                              onTabChange("download");
+                            const success = await handleInstall();
+                            if (success) {
+                              showToast("Aplicativo instalado com sucesso! 🎉", "success");
                             }
                           }}
                           onKeyDown={async (e) => {
                             if (e.key === "Enter" || e.key === " ") {
                               e.preventDefault();
                               e.stopPropagation();
-                              if (isInstallable && !isInstalled) {
-                                const success = await handleInstall();
-                                if (success) {
-                                  showToast("Aplicativo instalado com sucesso! 🎉", "success");
-                                }
-                              } else {
-                                onTabChange("download");
+                              const success = await handleInstall();
+                              if (success) {
+                                showToast("Aplicativo instalado com sucesso! 🎉", "success");
                               }
                             }
                           }}
@@ -298,13 +290,9 @@ export function Layout({
                             fontSize: 11,
                             padding: "4px 10px",
                             borderRadius: 999,
-                            background: isInstallable && !isInstalled
-                              ? "rgba(168, 85, 247, 0.15)"
-                              : "rgba(255,255,255,0.08)",
-                            border: isInstallable && !isInstalled
-                              ? "1px solid rgba(168, 85, 247, 0.4)"
-                              : "1px solid rgba(255,255,255,0.1)",
-                            color: isInstallable && !isInstalled ? "#A855F7" : "#D1D5DB",
+                            background: "rgba(168, 85, 247, 0.15)",
+                            border: "1px solid rgba(168, 85, 247, 0.4)",
+                            color: "#A855F7",
                             cursor: "pointer",
                             userSelect: "none",
                             whiteSpace: "nowrap",
@@ -313,7 +301,7 @@ export function Layout({
                             justifyContent: "center",
                           }}
                         >
-                          {isInstallable && !isInstalled ? "Instalar" : "Abrir"}
+                          Instalar
                         </div>
 
                         {isLocked && (
@@ -354,18 +342,14 @@ export function Layout({
           })}
         </nav>
 
-        {!collapsed && (
+        {!collapsed && isInstallable && !isInstalled && (
           <div style={{ margin: "16px 0 8px" }}>
             <button
               type="button"
               onClick={async () => {
-                if (isInstallable && !isInstalled) {
-                  const success = await handleInstall();
-                  if (success) {
-                    showToast("Aplicativo instalado com sucesso! 🎉", "success");
-                  }
-                } else {
-                  onTabChange("download");
+                const success = await handleInstall();
+                if (success) {
+                  showToast("Aplicativo instalado com sucesso! 🎉", "success");
                 }
               }}
               style={{
@@ -377,9 +361,7 @@ export function Layout({
                 padding: "12px 14px",
                 borderRadius: 12,
                 border: "1px solid rgba(168, 85, 247, 0.35)",
-                background: isInstallable && !isInstalled
-                  ? "linear-gradient(135deg, rgba(168, 85, 247, 0.15), rgba(59, 130, 246, 0.15))"
-                  : "rgba(255,255,255,0.04)",
+                background: "linear-gradient(135deg, rgba(168, 85, 247, 0.15), rgba(59, 130, 246, 0.15))",
                 color: "#fff",
                 cursor: "pointer",
                 fontSize: 13,
@@ -387,7 +369,7 @@ export function Layout({
               }}
             >
               <Download size={16} />
-              {isInstallable && !isInstalled ? "Instalar App" : "Abrir Baixar App"}
+              Instalar App
             </button>
           </div>
         )}
