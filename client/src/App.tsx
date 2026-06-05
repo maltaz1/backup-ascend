@@ -3,6 +3,7 @@ import type { User } from "@supabase/supabase-js";
 import { loadGymData } from "./lib/gym";
 import { supabase } from "./lib/supabase";
 import { initializeAuth, subscribeAuthChanges } from "@/lib/auth";
+import { usePWA } from "./hooks/usePWA";
 
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -127,6 +128,8 @@ function App() {
   const [startupError, setStartupError] = useState<string | null>(null);
   const [isPro, setIsPro] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+
+  usePWA();
 
   const syncProfileState = async (currentUser: User | null = user) => {
     if (!currentUser?.id) {

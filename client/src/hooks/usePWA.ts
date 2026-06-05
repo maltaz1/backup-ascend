@@ -5,95 +5,151 @@ interface PWAInstallPrompt extends Event {
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
 }
 
+interface PWAState {
+  isInstallable: boolean;
+  isInstalled: boolean;
+  isOnline: boolean;
+  installPrompt: PWAInstallPrompt | null;
+  beforeInstallPromptReceived: boolean;
+  serviceWorkerRegistered: boolean;
+  displayModeStandalone: boolean;
+}
+
+const pwaState: PWAState = {
+  isInstallable: false,
+  isInstalled: false,
+  isOnline: typeof navigator !== 'undefined' ? navigator.onLine : true,
+  installPrompt: null,
+  beforeInstallPromptReceived: false,
+  serviceWorkerRegistered: false,
+  displayModeStandalone: false,
+};
+
+const subscribers = new Set<() => void>();
+let hasInitialized = false;
+
+const notifySubscribers = () => {
+  subscribers.forEach((subscriber) => subscriber());
+};
+
+const initializePWA = () => {
+  if (hasInitialized || typeof window === 'undefined') {
+    return;
+  }
+
+  hasInitialized = true;
+
+  console.log('=== PWA DEBUG ===');
+  console.log('DISPLAY MODE', window.matchMedia('(display-mode: standalone)').matches);
+  console.log('IS SECURE', window.isSecureContext);
+  console.log('SERVICE WORKER SUPPORTED', 'serviceWorker' in navigator);
+  console.log('USER AGENT', navigator.userAgent);
+
+  pwaState.displayModeStandalone = window.matchMedia('(display-mode: standalone)').matches;
+  pwaState.isInstalled = pwaState.displayModeStandalone;
+
+  const handleBeforeInstallPrompt = (e: Event) => {
+    console.log('EVENTO beforeinstallprompt RECEBIDO');
+    e.preventDefault();
+
+    pwaState.installPrompt = e as PWAInstallPrompt;
+    pwaState.isInstallable = true;
+    pwaState.beforeInstallPromptReceived = true;
+    notifySubscribers();
+  };
+
+  const handleAppInstalled = () => {
+    console.log('appinstalled event recebido');
+    pwaState.isInstalled = true;
+    pwaState.isInstallable = false;
+    notifySubscribers();
+  };
+
+  const handleOnline = () => {
+    pwaState.isOnline = true;
+    notifySubscribers();
+  };
+
+  const handleOffline = () => {
+    pwaState.isOnline = false;
+    notifySubscribers();
+  };
+
+  window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+  window.addEventListener('appinstalled', handleAppInstalled);
+  window.addEventListener('online', handleOnline);
+  window.addEventListener('offline', handleOffline);
+
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker
+      .register('/sw.js', { scope: '/' })
+      .then((registration) => {
+        console.log('SW registrado');
+        pwaState.serviceWorkerRegistered = true;
+        notifySubscribers();
+        console.log('Service Worker registered:', registration);
+        navigator.serviceWorker.ready.then(() => {
+          console.log('SW pronto');
+        });
+        navigator.serviceWorker.getRegistrations().then((registrations) => {
+          console.log('SW Registrations:', registrations);
+        });
+      })
+      .catch((error) => {
+        console.error('Service Worker registration failed:', error);
+      });
+  }
+};
+
+const installApp = async (): Promise<boolean> => {
+  if (!pwaState.installPrompt) {
+    return false;
+  }
+
+  pwaState.installPrompt.prompt();
+  const { outcome } = await pwaState.installPrompt.userChoice;
+  console.log(`User response to the install prompt: ${outcome}`);
+
+  if (outcome === 'accepted') {
+    pwaState.isInstallable = false;
+    pwaState.installPrompt = null;
+    pwaState.isInstalled = true;
+    notifySubscribers();
+    return true;
+  }
+
+  return false;
+};
+
+const requestBackgroundSync = async () => {
+  if ('serviceWorker' in navigator && 'SyncManager' in window) {
+    try {
+      const registration = await navigator.serviceWorker.ready;
+      await (registration as any).sync.register('sync-data');
+      console.log('Background sync registered');
+    } catch (error) {
+      console.error('Background sync registration failed:', error);
+    }
+  }
+};
+
 export function usePWA() {
-  const [isInstallable, setIsInstallable] = useState(false);
-  const [installPrompt, setInstallPrompt] = useState<PWAInstallPrompt | null>(null);
-  const [isOnline, setIsOnline] = useState(navigator.onLine);
-  const [isInstalled, setIsInstalled] = useState(false);
+  const [current, setCurrent] = useState<PWAState>({ ...pwaState });
 
   useEffect(() => {
-    // Register Service Worker
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker
-        .register('/sw.js', { scope: '/' })
-        .then((registration) => {
-          console.log('service worker registrado');
-          console.log('Service Worker registered:', registration);
-        })
-        .catch((error) => {
-          console.error('Service Worker registration failed:', error);
-        });
-    }
+    initializePWA();
 
-    // Listen for install prompt
-    const handleBeforeInstallPrompt = (e: Event) => {
-      e.preventDefault();
-      console.log('beforeinstallprompt recebido');
-      setInstallPrompt(e as PWAInstallPrompt);
-      setIsInstallable(true);
-    };
-
-    // Listen for app installed
-    const handleAppInstalled = () => {
-      setIsInstalled(true);
-      setIsInstallable(false);
-    };
-
-    // Listen for online/offline
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
-
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-    window.addEventListener('appinstalled', handleAppInstalled);
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-
-    // Check if app is already installed
-    if (window.matchMedia('(display-mode: standalone)').matches) {
-      setIsInstalled(true);
-    }
+    const subscriber = () => setCurrent({ ...pwaState });
+    subscribers.add(subscriber);
+    setCurrent({ ...pwaState });
 
     return () => {
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-      window.removeEventListener('appinstalled', handleAppInstalled);
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
+      subscribers.delete(subscriber);
     };
   }, []);
 
-  const installApp = async (): Promise<boolean> => {
-    if (!installPrompt) return false;
-
-    installPrompt.prompt();
-    const { outcome } = await installPrompt.userChoice;
-    console.log(`User response to the install prompt: ${outcome}`);
-
-    if (outcome === 'accepted') {
-      setIsInstallable(false);
-      setInstallPrompt(null);
-      setIsInstalled(true);
-      return true;
-    }
-
-    return false;
-  };
-
-  const requestBackgroundSync = async () => {
-    if ('serviceWorker' in navigator && 'SyncManager' in window) {
-      try {
-        const registration = await navigator.serviceWorker.ready;
-        await (registration as any).sync.register('sync-data');
-        console.log('Background sync registered');
-      } catch (error) {
-        console.error('Background sync registration failed:', error);
-      }
-    }
-  };
-
   return {
-    isInstallable,
-    isInstalled,
-    isOnline,
+    ...current,
     installApp,
     requestBackgroundSync,
   };

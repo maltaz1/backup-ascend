@@ -18,7 +18,7 @@ const APP_URL = "https://ascend-lac-zeta.vercel.app";
 type Platform = "android" | "ios" | "desktop" | "unknown";
 
 export default function DownloadApp() {
-  const { isInstallable, isInstalled, installApp } = usePWA();
+  const { isInstallable, isInstalled, beforeInstallPromptReceived, serviceWorkerRegistered, displayModeStandalone, isOnline, installApp } = usePWA();
   const [platform, setPlatform] = useState<Platform>("unknown");
   const [copied, setCopied] = useState(false);
 
@@ -399,6 +399,17 @@ export default function DownloadApp() {
         </div>
       </div>
 
+      <div className="dl-card" style={{ padding: 22, marginBottom: 24, borderRadius: 22, background: 'rgba(15,23,42,0.8)' }}>
+        <h3 style={{ fontSize: 16, fontWeight: 700, margin: '0 0 12px' }}>Debug PWA</h3>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12, fontSize: 13 }}>
+          <div><strong>isInstallable:</strong> {String(isInstallable)}</div>
+          <div><strong>Installed:</strong> {String(isInstalled)}</div>
+          <div><strong>Prompt recebido:</strong> {String(beforeInstallPromptReceived)}</div>
+          <div><strong>Service Worker:</strong> {serviceWorkerRegistered ? 'registrado' : 'pendente'}</div>
+          <div><strong>Display mode:</strong> {displayModeStandalone ? 'standalone' : 'browser'}</div>
+          <div><strong>Online:</strong> {String(isOnline)}</div>
+        </div>
+      </div>
 
       {/* ── PLATFORM SECTIONS ── */}
 
