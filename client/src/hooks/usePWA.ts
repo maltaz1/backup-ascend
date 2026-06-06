@@ -80,39 +80,47 @@ const initializePWA = () => {
   window.addEventListener('online', handleOnline);
   window.addEventListener('offline', handleOffline);
 
-  // Em desenvolvimento remove qualquer SW antigo
-if (import.meta.env.DEV && 'serviceWorker' in navigator) {
-  navigator.serviceWorker.getRegistrations().then((registrations) => {
-    registrations.forEach((registration) => registration.unregister());
-    console.log('SW removidos (DEV)');
-  });
-}
-
-// Em produção registra normalmente
-if (import.meta.env.PROD && 'serviceWorker' in navigator) {
-  navigator.serviceWorker
-    .register('/sw.js', { scope: '/' })
-    .then((registration) => {
-      console.log('SW registrado');
-      pwaState.serviceWorkerRegistered = true;
-      notifySubscribers();
-
-      console.log('Service Worker registered:', registration);
-
-      navigator.serviceWorker.ready.then(() => {
-        console.log('SW pronto');
-      });
-
-      navigator.serviceWorker.getRegistrations().then((registrations) => {
-        console.log('SW Registrations:', registrations);
-      });
-    })
-    .catch((error) => {
-      console.error('Service Worker registration failed:', error);
+  // DEV → remove SWs antigos para evitar cache local
+  if (
+    import.meta.env.DEV &&
+    typeof navigator !== 'undefined' &&
+    'serviceWorker' in navigator
+  ) {
+    navigator.serviceWorker.getRegistrations().then((registrations) => {
+      registrations.forEach((registration) => registration.unregister());
+      console.log('SW removidos (DEV)');
     });
-}
-};
+  }
 
+  // PROD → registra normalmente
+  if (
+    import.meta.env.PROD &&
+    typeof navigator !== 'undefined' &&
+    'serviceWorker' in navigator
+  ) {
+    navigator.serviceWorker
+      .register('/sw.js', { scope: '/' })
+      .then((registration) => {
+        console.log('SW registrado');
+
+        pwaState.serviceWorkerRegistered = true;
+        notifySubscribers();
+
+        console.log('Service Worker registered:', registration);
+
+        navigator.serviceWorker.ready.then(() => {
+          console.log('SW pronto');
+        });
+
+        navigator.serviceWorker.getRegistrations().then((registrations) => {
+          console.log('SW Registrations:', registrations);
+        });
+      })
+      .catch((error) => {
+        console.error('Service Worker registration failed:', error);
+      });
+  }
+};
 
 const installApp = async (): Promise<boolean> => {
   if (!pwaState.installPrompt) {
@@ -120,7 +128,9 @@ const installApp = async (): Promise<boolean> => {
   }
 
   pwaState.installPrompt.prompt();
+
   const { outcome } = await pwaState.installPrompt.userChoice;
+
   console.log(`User response to the install prompt: ${outcome}`);
 
   if (outcome === 'accepted') {
@@ -135,7 +145,11 @@ const installApp = async (): Promise<boolean> => {
 };
 
 const requestBackgroundSync = async () => {
-  if ('serviceWorker' in navigator && 'SyncManager' in window) {
+  if (
+    typeof navigator !== 'undefined' &&
+    'serviceWorker' in navigator &&
+    'SyncManager' in window
+  ) {
     try {
       const registration = await navigator.serviceWorker.ready;
       await (registration as any).sync.register('sync-data');
@@ -153,6 +167,7 @@ export function usePWA() {
     initializePWA();
 
     const subscriber = () => setCurrent({ ...pwaState });
+
     subscribers.add(subscriber);
     setCurrent({ ...pwaState });
 
