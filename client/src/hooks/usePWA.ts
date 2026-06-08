@@ -93,34 +93,58 @@ const initializePWA = () => {
   }
 
   // PROD → registra normalmente
-  if (
-    import.meta.env.PROD &&
-    typeof navigator !== 'undefined' &&
-    'serviceWorker' in navigator
-  ) {
-    navigator.serviceWorker
-      .register('/sw.js', { scope: '/' })
-      .then((registration) => {
-        console.log('SW registrado');
+if (
+  import.meta.env.PROD &&
+  typeof navigator !== 'undefined' &&
+  'serviceWorker' in navigator
+) {
+  navigator.serviceWorker
+    .register('/sw.js', { scope: '/' })
+    .then((registration) => {
+      // Verifica atualizações imediatamente
+      registration.update();
 
-        pwaState.serviceWorkerRegistered = true;
-        notifySubscribers();
+      // Verifica atualizações periodicamente
+      setInterval(() => {
+        registration.update();
+      }, 60000);
 
-        console.log('Service Worker registered:', registration);
+      // Detecta nova versão e recarrega o app
+      registration.addEventListener('updatefound', () => {
+        const newWorker = registration.installing;
 
-        navigator.serviceWorker.ready.then(() => {
-          console.log('SW pronto');
+        newWorker?.addEventListener('statechange', () => {
+          if (
+            newWorker.state === 'activated' &&
+            navigator.serviceWorker.controller
+          ) {
+            console.log('Nova versão detectada, recarregando...');
+            window.location.reload();
+          }
         });
-
-        navigator.serviceWorker.getRegistrations().then((registrations) => {
-          console.log('SW Registrations:', registrations);
-        });
-      })
-      .catch((error) => {
-        console.error('Service Worker registration failed:', error);
       });
-  }
+
+      console.log('SW registrado');
+
+      pwaState.serviceWorkerRegistered = true;
+      notifySubscribers();
+
+      console.log('Service Worker registered:', registration);
+
+      navigator.serviceWorker.ready.then(() => {
+        console.log('SW pronto');
+      });
+
+      navigator.serviceWorker.getRegistrations().then((registrations) => {
+        console.log('SW Registrations:', registrations);
+      });
+    })
+    .catch((error) => {
+      console.error('Service Worker registration failed:', error);
+    });
+}
 };
+
 
 const installApp = async (): Promise<boolean> => {
   if (!pwaState.installPrompt) {

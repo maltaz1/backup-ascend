@@ -1,5 +1,5 @@
-const CACHE_NAME = "Ascend-v1";
-const RUNTIME_CACHE = "Ascend-runtime-v1";
+const CACHE_NAME = "Ascend-v2";
+const RUNTIME_CACHE = "Ascend-runtime-v2";
 const URLS_TO_CACHE = ["/", "/index.html", "/manifest.json", "/logo.png"];
 
 // Install event - cache essential files
